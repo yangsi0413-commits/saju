@@ -1,0 +1,250 @@
+/* 디자인 테마: <html data-theme="...">로 적용. 구조는 style.css가 맡고 여기서는 변수와 장식만 덮어쓴다 */
+
+/* ============================================================
+   1. 한지·먹 — 한지 질감, 먹색 글씨, 붉은 낙관
+   ============================================================ */
+[data-theme="hanji"] {
+  --bg: #ece2cc;
+  --surface: #f8f1e1;
+  --ink: #1c1a17;
+  --ink-2: #4a443b;
+  --muted: #857b6b;
+  --line: #d3c4a6;
+  --accent: #a8231b;
+  --accent-soft: #f0dccd;
+  --field: #fcf8ee;
+  --on-accent: #f8f1e1;
+  --good: #2d6a2d;
+  --low: #a8231b;
+  --radius: 3px;
+  --radius-sm: 3px;
+  --meter-weak: #c9d3dc;
+  --meter-strong: #e6c3b4;
+  --font-body: 'Gowun Batang', 'Nanum Myeongjo', serif;
+  --font-head: 'Nanum Myeongjo', serif;
+  --font-hanja: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+}
+[data-theme="hanji"] body {
+  background-color: var(--bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9 .04' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .25 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+[data-theme="hanji"] .brand { color: var(--ink); display: inline-flex; align-items: center; gap: 8px; }
+[data-theme="hanji"] .brand::before {
+  content: '命'; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 3px;
+  background: var(--accent); color: var(--on-accent); font-family: var(--font-hanja); font-size: 17px; transform: rotate(-5deg);
+}
+[data-theme="hanji"] .card,
+[data-theme="hanji"] .menu-card { border-color: #b9a782; outline: 1px solid var(--line); outline-offset: -6px; }
+[data-theme="hanji"] .card h2 { display: flex; align-items: center; gap: 8px; }
+[data-theme="hanji"] .card h2::before { content: ''; width: 4px; height: 1.1em; background: var(--ink); border-radius: 2px 0 3px 1px; }
+[data-theme="hanji"] .lead { color: var(--ink); border-left: 3px solid var(--accent); padding-left: 10px; }
+[data-theme="hanji"] .menu-icon { background: none; border: 1.5px solid var(--accent); color: var(--accent); border-radius: 50%; }
+[data-theme="hanji"] .primary { background: var(--ink); color: var(--surface); letter-spacing: .1em; }
+[data-theme="hanji"] .hanja { font-weight: 800; }
+[data-theme="hanji"] .term { color: var(--accent); }
+
+/* ============================================================
+   2. 궁궐 단청 — 녹청 바탕, 주홍·금·청 띠무늬
+   ============================================================ */
+[data-theme="dancheong"] {
+  --bg: #f3eddf;
+  --surface: #fffaf0;
+  --ink: #1d2823;
+  --ink-2: #3c4842;
+  --muted: #76807a;
+  --line: #e0d3b6;
+  --accent: #1d5a4d;
+  --accent-soft: #e2eee8;
+  --field: #fffdf7;
+  --on-accent: #fbe7b0;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --shadow: 0 2px 0 #e0d3b6;
+  --font-head: 'Noto Serif KR', serif;
+  --font-hanja: 'Noto Serif KR', serif;
+  --dancheong: repeating-linear-gradient(90deg,
+    #b5302a 0 16px, #d9a62e 16px 22px, #1f4e8c 22px 38px, #f3eddf 38px 41px, #1d5a4d 41px 57px, #d9a62e 57px 63px);
+}
+[data-theme="dancheong"] .topbar { max-width: none; background: #1d5a4d; backdrop-filter: none; box-shadow: 0 6px 0 -0px transparent; }
+[data-theme="dancheong"] .topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 6px; background: var(--dancheong); }
+[data-theme="dancheong"] .brand { color: #f5d27a; font-weight: 900; letter-spacing: .05em; }
+[data-theme="dancheong"] .topbar nav a,
+[data-theme="dancheong"] .topbar select { color: #f3eddf; }
+[data-theme="dancheong"] main { padding-top: 10px; }
+[data-theme="dancheong"] .card,
+[data-theme="dancheong"] .menu-card {
+  background: var(--dancheong) top left / 100% 5px no-repeat, var(--surface);
+  padding-top: 24px;
+}
+[data-theme="dancheong"] .card h2,
+[data-theme="dancheong"] .hero h1 { color: var(--accent); font-weight: 900; }
+[data-theme="dancheong"] .lead { color: #b5302a; }
+[data-theme="dancheong"] .menu-icon { background: var(--accent); color: #f5d27a; border-radius: 50%; box-shadow: inset 0 0 0 3px #1d5a4d, inset 0 0 0 5px #d9a62e; }
+[data-theme="dancheong"] .primary { background: #b5302a; color: #fbe7b0; box-shadow: inset 0 -4px 0 rgba(0,0,0,.18); }
+[data-theme="dancheong"] .score-num { color: #b5302a; }
+[data-theme="dancheong"] .chip.static { background: #1d5a4d; color: #fbe7b0; }
+
+/* ============================================================
+   3. 밤하늘 천문 — 남색 밤하늘, 별빛, 금색
+   ============================================================ */
+[data-theme="night"] {
+  color-scheme: dark;
+  --bg: #0b1026;
+  --surface: rgba(21, 29, 62, .82);
+  --ink: #ece6d3;
+  --ink-2: #c3bda9;
+  --muted: #8c8ca6;
+  --line: #2e3866;
+  --accent: #dcb75c;
+  --accent-soft: rgba(220, 183, 92, .14);
+  --field: #10173a;
+  --on-accent: #17122b;
+  --good: #7fd18b;
+  --mid: #e3c06a;
+  --low: #ff8f8f;
+  --radius: 16px;
+  --shadow: 0 0 0 1px rgba(220, 183, 92, .08), 0 12px 32px rgba(0, 0, 0, .35);
+  --meter-weak: #2c4f93;
+  --meter-strong: #8a3f45;
+  --font-head: 'Noto Serif KR', serif;
+  --font-hanja: 'Noto Serif KR', serif;
+  /* 어두운 바탕용 오행 단계 (검증 팔레트의 다크 스텝) */
+  --el-목: #19a35a;
+  --el-화: #e66767;
+  --el-토: #c98500;
+  --el-금: #9ea3ad;
+  --el-수: #3987e5;
+}
+[data-theme="night"] body {
+  background:
+    radial-gradient(1px 1px at 12% 18%, #fff, transparent),
+    radial-gradient(1px 1px at 72% 8%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 38% 42%, #f6e7b8, transparent),
+    radial-gradient(1px 1px at 88% 36%, #fff, transparent),
+    radial-gradient(1px 1px at 22% 66%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 62% 74%, #f6e7b8, transparent),
+    radial-gradient(1px 1px at 8% 92%, #fff, transparent),
+    radial-gradient(1px 1px at 92% 88%, #fff, transparent),
+    radial-gradient(ellipse at 50% -10%, #2a2466 0%, transparent 60%),
+    #0b1026;
+  background-attachment: fixed;
+}
+[data-theme="night"] .topbar { background: rgba(11, 16, 38, .75); }
+[data-theme="night"] .brand { color: var(--accent); }
+[data-theme="night"] .brand::before { content: '✦ '; }
+[data-theme="night"] .card,
+[data-theme="night"] .menu-card { backdrop-filter: blur(8px); border-color: rgba(220, 183, 92, .22); }
+[data-theme="night"] .card h2,
+[data-theme="night"] .hero h1 { color: #f4dc9c; }
+[data-theme="night"] .menu-icon { border-radius: 50%; border: 1px solid rgba(220, 183, 92, .5); box-shadow: 0 0 18px rgba(220, 183, 92, .25); }
+[data-theme="night"] .hanja { color: #fff6da; text-shadow: 0 0 12px rgba(244, 220, 156, .35); }
+[data-theme="night"] .primary { background: linear-gradient(180deg, #ecca73, #c79b3c); }
+[data-theme="night"] .score-num { color: #f4dc9c; text-shadow: 0 0 20px rgba(244, 220, 156, .35); }
+[data-theme="night"] .cat { background: rgba(255, 255, 255, .04); }
+[data-theme="night"] dialog { background: #151d3e; border: 1px solid rgba(220, 183, 92, .3); }
+[data-theme="night"] dialog h2,
+[data-theme="night"] .glossary dt { color: #f4dc9c; }
+
+/* ============================================================
+   4. 오방색 — 청·적·황·백·흑 다섯 방위색의 현대적 블록
+   ============================================================ */
+[data-theme="obang"] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --ink: #111111;
+  --ink-2: #333333;
+  --muted: #6f6f6f;
+  --line: #e4e4e4;
+  --accent: #d7262b;
+  --accent-soft: #fde9e9;
+  --field: #ffffff;
+  --radius: 0;
+  --radius-sm: 0;
+  --shadow: 5px 5px 0 #111;
+  --font-head: 'Black Han Sans', sans-serif;
+  --font-hanja: 'Noto Serif KR', serif;
+  --obang: linear-gradient(90deg, #1f4ea8 0 20%, #d7262b 20% 40%, #f2b705 40% 60%, #f4f4f4 60% 80%, #111 80%);
+}
+[data-theme="obang"] .topbar { max-width: none; background: #fff; border-bottom: 2px solid #111; }
+[data-theme="obang"] .topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -8px; height: 6px; background: var(--obang); }
+[data-theme="obang"] main { padding-top: 12px; }
+[data-theme="obang"] .brand { color: #111; font-weight: 400; font-size: 22px; }
+[data-theme="obang"] .hero h1 { font-weight: 400; font-size: 30px; }
+[data-theme="obang"] .card,
+[data-theme="obang"] .menu-card { border: 2px solid #111; }
+[data-theme="obang"] .card h2 { font-weight: 400; font-size: 21px; }
+[data-theme="obang"] .menu-card:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 #111; }
+[data-theme="obang"] .menu-icon { color: #fff; border-radius: 0; }
+[data-theme="obang"] .menu-card:nth-child(5n+1) .menu-icon { background: #1f4ea8; }
+[data-theme="obang"] .menu-card:nth-child(5n+2) .menu-icon { background: #d7262b; }
+[data-theme="obang"] .menu-card:nth-child(5n+3) .menu-icon { background: #f2b705; color: #111; }
+[data-theme="obang"] .menu-card:nth-child(5n+4) .menu-icon { background: #f4f4f4; color: #111; border: 2px solid #111; }
+[data-theme="obang"] .menu-card:nth-child(5n) .menu-icon { background: #111; }
+[data-theme="obang"] .lead { display: inline; color: #111; background: linear-gradient(transparent 58%, rgba(242, 183, 5, .55) 58%); }
+[data-theme="obang"] .primary { background: #111; box-shadow: 5px 5px 0 #d7262b; font-weight: 400; font-size: 19px; }
+[data-theme="obang"] .chip { border: 2px solid #111; border-radius: 0; }
+[data-theme="obang"] .chip.static { background: #f2b705; color: #111; }
+[data-theme="obang"] .score-num { font-weight: 400; font-size: 56px; }
+[data-theme="obang"] .bar-track,
+[data-theme="obang"] .bar-fill { border-radius: 0; }
+
+/* ============================================================
+   5. 부적 — 노란 괴황지, 주사(朱砂) 붉은 붓글씨, 이중 테두리
+   ============================================================ */
+[data-theme="bujeok"] {
+  --bg: #efcf63;
+  --surface: #f7e095;
+  --ink: #3a1a0f;
+  --ink-2: #5a3320;
+  --muted: #7d5a2c;
+  --line: #d6b14b;
+  --accent: #b8221a;
+  --accent-soft: #f3c98a;
+  --field: #fbeeb8;
+  --on-accent: #fbeeb8;
+  --good: #2f6b1f;
+  --mid: #7a4f00;
+  --low: #b8221a;
+  --radius: 2px;
+  --radius-sm: 2px;
+  --meter-weak: #e4cf8a;
+  --meter-strong: #e49a6c;
+  --font-body: 'Gowun Batang', serif;
+  --font-head: 'Nanum Brush Script', 'Gowun Batang', cursive;
+  --font-hanja: 'Noto Serif KR', serif;
+  /* 노란 바탕에서 묻히지 않도록 토를 한 단계 진하게 */
+  --el-토: #b07800;
+}
+[data-theme="bujeok"] body {
+  background-color: var(--bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2' seed='9'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .35 0 0 0 0 .05 0 0 0 .12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+[data-theme="bujeok"] .topbar { background: rgba(239, 207, 99, .9); }
+[data-theme="bujeok"] .brand { color: var(--accent); font-size: 30px; font-weight: 400; display: inline-flex; align-items: center; gap: 8px; }
+[data-theme="bujeok"] .brand::before {
+  content: '符'; display: grid; place-items: center; width: 30px; height: 30px; border: 2px solid var(--accent);
+  font-family: var(--font-hanja); font-size: 17px; font-weight: 900;
+}
+[data-theme="bujeok"] .hero h1 { color: var(--accent); font-size: 40px; font-weight: 400; line-height: 1.15; }
+[data-theme="bujeok"] .card,
+[data-theme="bujeok"] .menu-card { border: 2px solid var(--accent); outline: 1px solid var(--accent); outline-offset: -7px; }
+[data-theme="bujeok"] .card { padding: 24px; }
+[data-theme="bujeok"] .card h2 { color: var(--accent); font-size: 30px; font-weight: 400; line-height: 1.2; }
+[data-theme="bujeok"] .menu-title { font-size: 26px; font-weight: 400; color: var(--accent); line-height: 1.1; }
+[data-theme="bujeok"] .menu-icon { background: var(--accent); color: var(--on-accent); border-radius: 0; font-weight: 900; }
+[data-theme="bujeok"] .lead { color: var(--accent); }
+[data-theme="bujeok"] .hanja,
+[data-theme="bujeok"] .dae-char { color: var(--accent); font-weight: 900; }
+[data-theme="bujeok"] .primary { font-size: 28px; font-weight: 400; padding: 8px; }
+[data-theme="bujeok"] .score-num { color: var(--accent); font-size: 64px; font-weight: 400; }
+[data-theme="bujeok"] .cat { background: rgba(255, 255, 255, .25); }
+
+/* 분석 애니메이션 배경도 테마 바탕을 따른다 */
+[data-theme="night"] .loading-overlay {
+  background:
+    radial-gradient(1px 1px at 15% 20%, #fff, transparent), radial-gradient(1px 1px at 80% 12%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 40% 75%, #f6e7b8, transparent), radial-gradient(1px 1px at 88% 66%, #fff, transparent),
+    radial-gradient(ellipse at 50% 30%, #2a2466 0%, transparent 65%), #0b1026;
+}
+[data-theme="night"] .lp-char { color: #fff6da; border-color: rgba(220, 183, 92, .35); background: rgba(21, 29, 62, .9); }
+[data-theme="night"] .persona-type { color: #f4dc9c; text-shadow: 0 0 16px rgba(244, 220, 156, .3); }

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>사주풀이</title>
+  <meta name="theme-color" content="#0b1026">
+  <meta name="description" content="생년월일시로 사주팔자를 계산하고, 풀이의 근거까지 쉽게 설명하는 사주 사이트">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Batang:wght@400;700&family=Nanum+Brush+Script&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Serif+KR:wght@500;700;900&display=swap">
+  <link rel="stylesheet" href="src/ui/style.css">
+  <link rel="stylesheet" href="src/ui/themes.css">
+  <script>
+    // 그리기 전에 테마 적용: ?theme= → 저장된 선택 → 기본(밤하늘 천문). 'light'는 테마 없는 밝은 기본형
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme'), saved = null;
+      try { saved = localStorage.getItem('saju.theme.v2'); } catch (e) {}
+      t = t || saved || 'night';
+      if (t !== 'light') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/">사주풀이</a>
+    <nav>
+      <a href="#/learn">기초 배우기</a>
+      <label class="theme-pick">디자인 <select id="theme-picker" aria-label="디자인 선택"></select></label>
+      <a href="preview.html">미리보기</a>
+    </nav>
+  </header>
+
+  <main id="app"></main>
+
+  <dialog id="term-dialog" aria-labelledby="term-title">
+    <h2 id="term-title"></h2>
+    <p></p>
+    <button type="button" data-close>닫기</button>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.7.7/lunar.js"></script>
+  <script src="src/core/saju.js"></script>
+  <script src="src/core/interpret.js"></script>
+  <script src="src/ui/app.js"></script>
+</body>
+</html>

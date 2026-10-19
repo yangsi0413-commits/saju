@@ -1,0 +1,23 @@
+{
+  "name": "saju",
+  "version": "1.0.0",
+  "description": "사주팔자 계산 엔진과 근거 중심 풀이 웹사이트",
+  "main": "src/core/saju.js",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node test/saju.test.js && node test/interpret.test.js",
+    "test:engine": "node test/saju.test.js",
+    "test:interpret": "node test/interpret.test.js"
+  },
+  "keywords": [
+    "saju",
+    "사주",
+    "만세력"
+  ],
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "dependencies": {
+    "lunar-javascript": "^1.7.7"
+  },
+  "private": true
+}
