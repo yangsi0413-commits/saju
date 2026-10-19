@@ -377,14 +377,9 @@ dialog button { margin-top: 12px; padding: 10px 16px; border-radius: 10px; borde
 .qa-form-inline { display: flex; gap: 8px; margin: 8px 0 12px; }
 .qa-form-inline input { flex: 1; }
 .small-btn { width: auto; margin: 0; padding: 10px 16px; font-size: 15px; white-space: nowrap; }
-.qa-mode { margin: 8px 0; }
-.qa-mode label { flex: 1; min-width: 140px; }
-.ai-settings { margin-top: 8px; }
-.ai-settings > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--accent); }
-.ai-settings form { display: grid; gap: 10px; margin: 10px 0 6px; }
-.row-btns { display: flex; gap: 8px; }
-.qa-thread { display: grid; gap: 12px; margin-top: 16px; }
-.qa-empty { text-align: center; padding: 12px 0; }
+.qa-thread { display: grid; gap: 12px; margin: 12px 0; }
+.qa-thread:empty { display: none; }
+.qa-clear { margin-top: 8px; font-size: 12px; }
 .qa-q { display: flex; justify-content: flex-end; }
 .qa-q span { max-width: 85%; padding: 10px 14px; border-radius: 16px 16px 4px 16px; background: var(--accent-soft); color: var(--ink); font-weight: 600; line-height: 1.6; }
 .qa-answer { padding: 16px 18px; border-radius: 4px 16px 16px 16px; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); }
@@ -392,20 +387,6 @@ dialog button { margin-top: 12px; padding: 10px 16px; border-radius: 10px; borde
 .qa-kind { margin: 0; }
 .qa-advice { margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--accent-soft); font-size: 14px; }
 .qa-advice ul { margin: 6px 0 0; padding-left: 18px; }
-.qa-ai-body h4 { margin: 14px 0 4px; font-size: 15px; color: var(--accent); }
-.qa-ai-body p, .qa-ai-body li { line-height: 1.8; }
-.qa-ai-body ul, .qa-ai-body ol { padding-left: 20px; margin: 6px 0; }
-.typing { display: flex; gap: 4px; padding: 6px 0; }
-.typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite; }
-.typing span:nth-child(2) { animation-delay: .2s; }
-.typing span:nth-child(3) { animation-delay: .4s; }
-@keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
-.qa-ask { display: grid; gap: 10px; }
-.qa-ask textarea { font: inherit; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--field); color: var(--ink); resize: vertical; }
-.qa-ask-row { display: flex; gap: 10px; align-items: flex-end; justify-content: space-between; }
-.qa-ask-row .chips .chip { font-size: 12px; padding: 5px 10px; }
-.qa-ask > [data-qa-clear] { justify-self: start; font-size: 12px; }
-@media (prefers-reduced-motion: reduce) { .typing span { animation: none; opacity: .6; } }
 
 @media (max-width: 480px) {
   .hero h1 { font-size: 22px; }
@@ -415,5 +396,4 @@ dialog button { margin-top: 12px; padding: 10px 16px; border-radius: 10px; borde
   .card { padding: 16px; }
   .bar-row { grid-template-columns: 48px 1fr 84px; }
   .keypoints a { grid-template-columns: 1fr; gap: 0; }
-  .qa-ask-row { flex-direction: column; align-items: stretch; }
 }

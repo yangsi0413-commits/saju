@@ -1,4 +1,4 @@
-// 검증: 무작위 인물 × 다양한 질문으로 Q&A 답변과 AI 보고서를 만들어 오류·빈 값을 확인
+// 검증: 무작위 인물 × 다양한 질문으로 Q&A 답변을 만들어 오류·빈 값을 확인
 const S = require('../src/core/saju.js');
 const M = require('../src/core/methods.js');
 const Q = require('../src/core/qa.js');
@@ -43,9 +43,6 @@ for (let i = 0; i < 60; i++) {
       check('예외', false, `${q} ${e.stack}`);
     }
   }
-  const report = Q.buildReport(s, partners, now);
-  check('보고서 길이', report.length > 5000, String(report.length));
-  check('보고서 빈 값', !/undefined|NaN|\[object Object\]/.test(report), report.match(/.{40}(undefined|NaN|\[object Object\]).{20}/)?.[0]);
 }
 
 // 주제·시점 인식

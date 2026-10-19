@@ -23,20 +23,19 @@ saju/
 │   │   ├── saju.js         계산 엔진: 시간 보정, 4주, 십성, 12운성, 신살, 합충, 신강약, 격국, 용신, 대운·세운·월운·일진, 궁합
 │   │   ├── methods.js      해석 방법(학파): 억부·조후·격국·통관·병약 용신 + 신살·물상 관점 + 종합(투표)
 │   │   ├── interpret.js    풀이 엔진: 계산 결과 → 문장 + 근거(why) + 용어 사전
-│   │   └── qa.js           사주 Q&A: 규칙 기반 답변 + AI 상담용 사주 보고서·지침
+│   │   └── qa.js           사주 Q&A: 질문의 주제·시기를 읽고 풀이 데이터로 답변
 │   └── ui/
-│       ├── app.js          화면 흐름(해시 라우팅): 홈 → 입력 → 결과, 기초 배우기, Q&A
-│       ├── ai.js           AI 상담: Anthropic SDK(브라우저)로 Claude 호출, 스트리밍
+│       ├── app.js          화면 흐름(해시 라우팅): 홈 → 입력 → 결과(맨 끝에 Q&A), 기초 배우기
 │       ├── style.css       기본 스타일 (구조·레이아웃, 모든 색·글꼴은 CSS 변수)
 │       └── themes.css      디자인 테마 5종 (변수와 장식만 덮어씀)
 ├── preview.html            5가지 디자인을 휴대폰 화면으로 나란히 비교
 └── test/
     ├── saju.test.js        lunar-javascript·Intl과 교차 검증, 알려진 사례 검증
     ├── interpret.test.js   무작위 입력으로 모든 풀이 생성 → 빈 값·없는 용어·예외 검사
-    └── qa.test.js          무작위 인물 × 질문 26개로 Q&A 답변·AI 보고서 검사
+    └── qa.test.js          무작위 인물 × 질문 26개로 Q&A 답변 검사
 ```
 
-의존 방향은 `ui → core/interpret, core/methods → core/saju → lunar-javascript` 한 방향입니다. 스크립트 로드 순서: lunar → saju → methods → interpret → qa → ai → app.
+의존 방향은 `ui → core/interpret, core/methods → core/saju → lunar-javascript` 한 방향입니다. 스크립트 로드 순서: lunar → saju → methods → interpret → qa → app.
 
 ## 화면 흐름
 
@@ -75,17 +74,12 @@ saju/
 
 ## 사주 Q&A
 
-`#/result/qa` 화면, 그리고 모든 결과 화면 끝의 질문 칸에서 묻습니다. 대화는 같은 사람·같은 해석 방법일 때 이어집니다.
+모든 결과 화면 맨 끝의 "풀이를 보고 궁금한 게 있나요?" 칸에서 묻고, 답은 그 자리에 이어서 보여 줍니다. 대화는 같은 사람·같은 해석 방법일 때 다른 결과 화면으로 옮겨 가도 이어집니다.
 
-**기본 답변 (무료, 오프라인)** — `SajuQA.answer(s, question, { partners, now })`
+`SajuQA.answer(s, question, { partners, now })`
 - 질문에서 주제(결혼·연애·어울리는 상대·궁합·사업·직장·재물·시험·건강·이사·자녀·인간관계·성격·행운·대운·해석 방법·오늘·힘든/좋은 시기·달·한 해)와 시점(연도, 올해/내년/작년, N살, N년 후, N월, 이번 달)과 형태(언제? / 해도 될까? / 과거)를 읽습니다.
 - 주제마다 관련 십성(예: 직장=관성·식상, 재물=재성, 연애=남성 재성·여성 관성)이 그해 들어오는지, 그 기운이 용신·희신인지, 충·합·역마·도화가 있는지로 해마다 점수를 매겨 결론 → 근거 → 조언으로 답합니다.
-
-**AI 상담 (Claude, 사용자 API 키 필요)** — `src/ui/ai.js`
-- `SajuQA.buildReport()`가 만든 사주 보고서(원국, 해석 방법별 결론, 종합풀이, 성격, 대운, 인생 흐름 연도별 점수, 올해·내년·월별, 오늘, 궁합) 전체를 system에 넣고, `SajuQA.SYSTEM_PROMPT`의 원칙(보고서만 근거, 결론 → 근거 → 조언, 단정 금지, 전문 영역은 전문가 권유)으로 답합니다.
-- 모델 `claude-opus-5-5`, effort `medium`, 스트리밍, 보고서 블록 프롬프트 캐시, 거절 시 서버 측 대체 모델(`fallbacks: "default"`).
-- 정적 사이트라 서버가 없어 브라우저에서 Anthropic API로 바로 요청합니다(`dangerouslyAllowBrowser`). 키는 사용자가 넣고 이 브라우저(sessionStorage, "기억하기" 시 localStorage)에만 저장됩니다. 사용 요금은 키 주인 계정에 부과됩니다.
-- 여러 사람이 쓰는 공개 서비스로 키를 숨기려면 서버(예: 서버리스 함수)에서 키를 보관하고 이 호출을 대신하도록 옮겨야 합니다.
+- 모든 계산은 브라우저 안에서 이루어지며 외부로 전송되지 않습니다.
 
 ## 디자인 테마
 

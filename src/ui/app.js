@@ -9,7 +9,6 @@
 
   const MENUS = [
     { id: 'saju', icon: '命', title: '사주팔자 종합풀이', desc: '타고난 성격·재물·직업·연애·건강을 근거와 함께 풀어 드려요', people: 1 },
-    { id: 'qa', icon: '問', title: '사주 Q&A · 질문하기', desc: '풀이를 바탕으로 무엇이든 물어보세요', people: 1 },
     { id: 'persona', icon: '性', title: '성격·성향 풀이', desc: '일·친구·연애에서 나는 어떤 사람일까? 가치관까지', people: 1 },
     { id: 'life', icon: '時', title: '인생 흐름 · 과거와 미래', desc: '힘들었던 시기와 앞으로 잘 풀릴 시기를 근거와 함께', people: 1 },
     { id: 'today', icon: '日', title: '오늘의 운세', desc: '오늘의 일진이 내 사주에 주는 영향', people: 1 },
@@ -38,14 +37,7 @@
   const METHOD_KEY = 'saju.method';
   const loadMethod = () => { try { return localStorage.getItem(METHOD_KEY) || 'consensus'; } catch { return 'consensus'; } };
   const state = { profiles: DEMO ? DEMO_PROFILES : loadProfiles(), year: THIS_YEAR, method: params.get('method') || loadMethod(), route: '' };
-  // Q&A: 대화 기록은 같은 사람·같은 해석 방법일 때만 이어 간다. API 키는 이 브라우저에만 둔다
-  const AI_KEY = 'saju.aiKey', QA_MODE = 'saju.qaMode';
-  const store = {
-    get: (k) => { try { return localStorage.getItem(k) || sessionStorage.getItem(k) || ''; } catch { return ''; } },
-    set: (k, v, remember) => { try { (remember ? localStorage : sessionStorage).setItem(k, v); (remember ? sessionStorage : localStorage).removeItem(k); } catch { /* 저장 불가 */ } },
-    del: (k) => { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch { /* 저장 불가 */ } },
-  };
-  state.qa = { sig: '', items: [], aiHistory: [], report: '', mode: store.get(QA_MODE) || 'basic', busy: null, pending: '' };
+  state.qa = { sig: '', items: [], ctx: null };
 
   // 사주 계산 + 고른 해석 방법(학파)의 용신 적용
   const analyze = (p) => Methods.applyMethod(analyzeSaju(p), state.method, THIS_YEAR);
@@ -379,15 +371,15 @@
     const m = menuOf(menuId);
     if (!m || !state.profiles[0] || (m.people === 2 && !state.profiles[1])) return go(`#/input/${menuId}`);
     const s = analyze(state.profiles[0]);
-    const body = { saju: resultSaju, qa: resultQa, persona: resultPersona, life: resultLife, today: resultToday, year: resultYear, daeun: resultDaeun, compat: resultCompat }[menuId](s);
+    setQaContext(s);
+    const body = { saju: resultSaju, persona: resultPersona, life: resultLife, today: resultToday, year: resultYear, daeun: resultDaeun, compat: resultCompat }[menuId](s);
     app.innerHTML = `
       <a class="back" href="#/">← 운세 선택</a>
       ${methodBar(s, menuId === 'saju')}
       ${body}
-      ${menuId === 'qa' ? '' : qaEntry(menuId)}
+      ${qaSection(menuId)}
       ${otherMenus(menuId)}`;
     window.scrollTo(0, 0);
-    if (menuId === 'qa') afterQaRender(s);
   }
 
   function resultSaju(s) {
@@ -475,47 +467,20 @@
   }
 
   // ============================================================
-  // 사주 Q&A
+  // 사주 Q&A: 결과 화면 맨 끝에서 위의 풀이를 근거로 질문하고 그 자리에서 답을 본다
   // ============================================================
 
-  // 결과 화면 끝: 질문 입력칸
-  function qaEntry(menuId) {
-    const sug = SajuQA.SUGGESTIONS[menuId] || SajuQA.SUGGESTIONS.qa;
-    return `
-      <section class="card qa-entry">
-        <h2>풀이를 보고 궁금한 게 있나요?</h2>
-        <p class="muted small">지금까지의 풀이를 근거로 답해 드려요.</p>
-        <form class="qa-form-inline" data-qa-form>
-          <input name="q" maxlength="200" placeholder="예: ${esc(sug[0])}" aria-label="질문">
-          <button class="primary small-btn">질문하기</button>
-        </form>
-        <div class="chips">${sug.map(q => `<button type="button" class="chip" data-ask="${esc(q)}">${esc(q)}</button>`).join('')}</div>
-      </section>`;
-  }
-
-  // 아주 간단한 마크다운(### 소제목, - 목록, 1. 목록, **굵게**)만 HTML로
-  function md(text) {
-    const inline = (t) => esc(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
-    const out = [];
-    let list = null;
-    const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
-    for (const raw of String(text).split('\n')) {
-      const line = raw.trim();
-      if (!line) { close(); continue; }
-      let m;
-      if ((m = line.match(/^#{1,4}\s+(.*)$/))) { close(); out.push(`<h4>${inline(m[1])}</h4>`); }
-      else if ((m = line.match(/^[-*•]\s+(.*)$/))) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inline(m[1])}</li>`); }
-      else if ((m = line.match(/^\d+[.)]\s+(.*)$/))) { if (list !== 'ol') { close(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inline(m[1])}</li>`); }
-      else { close(); out.push(`<p>${inline(line)}</p>`); }
-    }
-    close();
-    return out.join('');
+  // 대화는 같은 사람·같은 해석 방법일 때만 이어 간다
+  function setQaContext(s) {
+    const sig = JSON.stringify([state.profiles, state.method]);
+    if (state.qa.sig !== sig) Object.assign(state.qa, { sig, items: [] });
+    state.qa.ctx = { s, partners: state.profiles.slice(1, 3).filter(Boolean).map(p => analyze(p)) };
   }
 
   function answerCard(a) {
     return `
       <article class="qa-answer">
-        <p class="qa-kind muted small">기본 답변 · ${esc(a.title)}</p>
+        <p class="qa-kind muted small">${esc(a.title)}</p>
         <p class="lead">${rich(a.conclusion)}</p>
         ${paragraphs(a.points)}
         ${a.advice.length ? `<div class="qa-advice"><b>조언</b><ul>${a.advice.map(x => `<li>${rich(x)}</li>`).join('')}</ul></div>` : ''}
@@ -524,117 +489,40 @@
       </article>`;
   }
 
-  function threadHtml() {
-    const items = state.qa.items;
-    if (!items.length) return `<p class="muted qa-empty">아래에 질문을 입력하거나 예시 질문을 눌러 보세요.</p>`;
-    return items.map((it, i) => {
-      if (it.role === 'user') return `<div class="qa-q"><span>${esc(it.text)}</span></div>`;
-      if (it.kind === 'basic') return answerCard(it.answer);
-      return `
-        <article class="qa-answer qa-ai" id="qa-item-${i}">
-          <p class="qa-kind muted small">AI 상담 · Claude (${esc(SajuAI.MODEL)}) · 사주 보고서 기반</p>
-          <div class="qa-ai-body">${it.text ? md(it.text) : '<p class="typing"><span></span><span></span><span></span></p>'}</div>
-          ${it.error ? `<p class="error">${esc(it.error)}</p>` : ''}
-          ${it.pending ? '<button type="button" class="chip" data-qa-stop>답변 멈추기</button>' : ''}
-        </article>`;
-    }).join('');
-  }
+  const threadHtml = () => state.qa.items
+    .map(it => (it.role === 'user' ? `<div class="qa-q"><span>${esc(it.text)}</span></div>` : answerCard(it.answer))).join('');
 
-  function resultQa(s) {
-    const partners = state.profiles.slice(1, 3).filter(Boolean);
-    const key = store.get(AI_KEY);
-    const ai = state.qa.mode === 'ai';
+  function qaSection(menuId) {
+    const sug = SajuQA.SUGGESTIONS[menuId] || SajuQA.SUGGESTIONS.qa;
     return `
-      <section class="card qa-intro">
-        <h2>${esc(s.name)}님의 사주 Q&A</h2>
-        <p>지금까지의 모든 풀이(해석 기준: <b>${esc(s.yongsin.method || '종합')}</b>${partners.length ? `, 궁합 상대 ${partners.map(p => esc(p.name)).join('·')}` : ''})를 근거로 답해요.</p>
-        <div class="segmented qa-mode" role="radiogroup" aria-label="답변 방식">
-          <label><input type="radio" name="qa-mode" value="basic" ${ai ? '' : 'checked'}> 기본 답변 <span class="muted small">무료·즉시</span></label>
-          <label><input type="radio" name="qa-mode" value="ai" ${ai ? 'checked' : ''}> AI 상담 <span class="muted small">Claude·API 키 필요</span></label>
-        </div>
-        <p class="muted small">${ai
-          ? 'AI 상담은 사주 보고서 전체를 Claude에게 건네고, 그 내용만 근거로 어떤 질문이든 논리적으로 답하게 해요.'
-          : '기본 답변은 질문의 주제(직장·재물·연애·결혼·건강·이사·시험 등)와 시기(연도·나이·달)를 읽고 계산된 데이터로 답해요. 자유로운 질문은 AI 상담이 더 잘 답해요.'}</p>
-        <details class="ai-settings" ${ai && !key ? 'open' : ''}>
-          <summary>AI 상담 설정 ${key ? '<span class="muted small">(키 등록됨)</span>' : ''}</summary>
-          <form data-ai-key>
-            <label>Anthropic API 키
-              <input type="password" name="key" autocomplete="off" placeholder="sk-ant-..." value="${key ? '••••••••' + esc(key.slice(-4)) : ''}">
-            </label>
-            <label class="check"><input type="checkbox" name="remember" ${store.get(AI_KEY) && (() => { try { return !!localStorage.getItem(AI_KEY); } catch { return false; } })() ? 'checked' : ''}> 이 기기에 기억하기</label>
-            <div class="row-btns"><button class="chip">저장</button>${key ? '<button type="button" class="chip ghost" data-ai-key-del>키 지우기</button>' : ''}</div>
-          </form>
-          <p class="muted small">키는 이 브라우저에만 저장되고, 질문할 때 Anthropic API로만 직접 전송돼요(이 사이트 서버는 없어요). 사용량에 따라 본인 계정에 요금이 부과됩니다. 키는 console.anthropic.com에서 만들 수 있어요. 공용 컴퓨터에서는 "기억하기"를 끄세요.</p>
-        </details>
-      </section>
-      <section class="qa-thread" id="qa-thread" aria-live="polite">${threadHtml()}</section>
-      <form class="card qa-ask" data-qa-form>
-        <textarea name="q" rows="2" maxlength="500" placeholder="예: 언제 이직하면 좋을까? / 2028년 재물운은? / 우리 결혼하기 좋은 해는?" aria-label="질문"></textarea>
-        <div class="qa-ask-row">
-          <div class="chips">${SajuQA.SUGGESTIONS.qa.map(q => `<button type="button" class="chip" data-ask="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+      <section class="card qa-entry" id="qa">
+        <h2>풀이를 보고 궁금한 게 있나요?</h2>
+        <p class="muted small">위의 풀이를 근거로 답해 드려요. 주제(직장·재물·연애·결혼·건강·이사 등)와 시기(연도·나이·달)를 넣어 물어보면 더 정확해요.</p>
+        <div class="qa-thread" id="qa-thread" aria-live="polite">${threadHtml()}</div>
+        <form class="qa-form-inline" data-qa-form>
+          <input name="q" maxlength="200" placeholder="예: ${esc(sug[0])}" aria-label="질문">
           <button class="primary small-btn">질문하기</button>
-        </div>
-        <button type="button" class="chip ghost" data-qa-clear>대화 지우기</button>
-      </form>`;
+        </form>
+        <div class="chips">${sug.map(q => `<button type="button" class="chip" data-ask="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+        <button type="button" class="chip ghost qa-clear" data-qa-clear ${state.qa.items.length ? '' : 'hidden'}>대화 지우기</button>
+      </section>`;
   }
 
   function redrawThread() {
     const el = document.getElementById('qa-thread');
     if (el) el.innerHTML = threadHtml();
+    const clear = document.querySelector('[data-qa-clear]');
+    if (clear) clear.hidden = !state.qa.items.length;
   }
 
-  function afterQaRender(s) {
-    state.qa.ctx = { s, partners: state.profiles.slice(1, 3).filter(Boolean).map(p => analyze(p)) };
-    const sig = JSON.stringify([state.profiles, state.method]);
-    if (state.qa.sig !== sig) Object.assign(state.qa, { sig, items: [], aiHistory: [], report: '' });
-    if (state.qa.pending) { const q = state.qa.pending; state.qa.pending = ''; askQuestion(q); }
-    else if (state.qa.items.length) document.getElementById('qa-thread')?.lastElementChild?.scrollIntoView({ block: 'nearest' });
-  }
-
-  async function askQuestion(q) {
+  function askQuestion(q) {
     q = q.trim();
-    if (!q || state.qa.busy) return;
+    if (!q || !state.qa.ctx) return;
     const { s, partners } = state.qa.ctx;
-    state.qa.items.push({ role: 'user', text: q });
-    if (state.qa.mode !== 'ai') {
-      state.qa.items.push({ role: 'assistant', kind: 'basic', answer: SajuQA.answer(s, q, { partners, now: new Date() }) });
-      redrawThread();
-      document.getElementById('qa-thread')?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return;
-    }
-    const apiKey = store.get(AI_KEY);
-    const item = { role: 'assistant', kind: 'ai', text: '', pending: true };
-    state.qa.items.push(item);
-    if (!apiKey) {
-      Object.assign(item, { pending: false, error: 'AI 상담을 쓰려면 위의 "AI 상담 설정"에서 Anthropic API 키를 등록해 주세요. 키 없이도 "기본 답변"으로 바로 물어볼 수 있어요.' });
-      redrawThread();
-      return;
-    }
+    state.qa.items.push({ role: 'user', text: q }, { role: 'assistant', answer: SajuQA.answer(s, q, { partners, now: new Date() }) });
     redrawThread();
-    document.getElementById('qa-thread')?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    if (!state.qa.report) state.qa.report = SajuQA.buildReport(s, partners, new Date());
-    const controller = new AbortController();
-    state.qa.busy = controller;
-    const idx = state.qa.items.indexOf(item);
-    const paint = () => { const body = document.querySelector(`#qa-item-${idx} .qa-ai-body`); if (body) body.innerHTML = md(item.text); };
-    try {
-      const msg = await SajuAI.ask({
-        apiKey, report: state.qa.report, history: state.qa.aiHistory, question: q, signal: controller.signal,
-        onText: (snapshot) => { item.text = snapshot; paint(); },
-      });
-      if (msg.stop_reason === 'refusal') item.error = '이 질문에는 답변이 거절됐어요. 질문을 바꿔 다시 물어봐 주세요.';
-      else {
-        item.text = SajuAI.textOf(msg) || item.text;
-        if (msg.stop_reason === 'max_tokens') item.error = '답변이 길어 중간에 끊겼어요. "이어서 말해 줘"라고 물어보세요.';
-        state.qa.aiHistory.push({ role: 'user', content: q }, { role: 'assistant', content: msg.content });
-      }
-    } catch (err) {
-      item.error = await SajuAI.errorMessage(err);
-    } finally {
-      item.pending = false;
-      state.qa.busy = null;
-      redrawThread();
-    }
+    const thread = document.getElementById('qa-thread');
+    thread?.children[thread.children.length - 2]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // ============================================================
@@ -967,15 +855,8 @@
       return;
     }
     const ask = e.target.closest('[data-ask]');
-    if (ask) {
-      const [, page] = (location.hash || '#/').split('/');
-      if (page === 'result' && location.hash.endsWith('/qa')) askQuestion(ask.dataset.ask);
-      else { state.qa.pending = ask.dataset.ask; go('#/result/qa'); }
-      return;
-    }
-    if (e.target.closest('[data-qa-stop]')) { state.qa.busy?.abort(); return; }
-    if (e.target.closest('[data-qa-clear]')) { Object.assign(state.qa, { items: [], aiHistory: [] }); renderResult('qa'); return; }
-    if (e.target.closest('[data-ai-key-del]')) { store.del(AI_KEY); renderResult('qa'); return; }
+    if (ask) { askQuestion(ask.dataset.ask); return; }
+    if (e.target.closest('[data-qa-clear]')) { state.qa.items = []; redrawThread(); return; }
     const mb = e.target.closest('[data-method]');
     if (mb) {
       state.method = mb.dataset.method;
@@ -996,31 +877,7 @@
       const q = qaForm.q.value.trim();
       if (!q) return;
       qaForm.q.value = '';
-      if (location.hash.endsWith('/qa')) askQuestion(q);
-      else { state.qa.pending = q; go('#/result/qa'); }
-      return;
-    }
-    const keyForm = e.target.closest('[data-ai-key]');
-    if (keyForm) {
-      e.preventDefault();
-      const v = keyForm.key.value.trim();
-      if (v && !v.startsWith('••')) store.set(AI_KEY, v, keyForm.remember.checked);
-      else if (store.get(AI_KEY)) store.set(AI_KEY, store.get(AI_KEY), keyForm.remember.checked);
-      renderResult('qa');
-    }
-  });
-  document.addEventListener('change', (e) => {
-    if (e.target.name === 'qa-mode') {
-      state.qa.mode = e.target.value;
-      try { localStorage.setItem(QA_MODE, state.qa.mode); } catch { /* 저장 불가 */ }
-      renderResult('qa');
-    }
-  });
-  // 질문 칸에서 Enter = 보내기, Shift+Enter = 줄바꿈
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.target.matches('.qa-ask textarea')) {
-      e.preventDefault();
-      e.target.form.requestSubmit();
+      askQuestion(q);
     }
   });
 

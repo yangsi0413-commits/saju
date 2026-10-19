@@ -1,6 +1,5 @@
 // 사주 Q&A
-// 1) answer(): 질문의 주제·시점·형태를 읽고, 이미 계산된 사주 데이터로 결론 → 근거 → 조언을 만든다 (규칙 기반, 무료)
-// 2) buildReport(): AI 상담에 넘길 "사주 보고서" 텍스트. AI는 이 보고서만 근거로 답한다
+// answer(): 질문의 주제·시점·형태를 읽고, 이미 계산된 사주 데이터로 결론 → 근거 → 조언을 만든다
 
 (function (root) {
   const node = typeof module !== 'undefined' && typeof require !== 'undefined';
@@ -401,7 +400,7 @@
     return {
       topic: 'general', title: '사주로 본 답변', conclusion: `질문의 주제를 정확히 알아듣지 못했어요. 대신 지금 사주의 핵심을 정리해 드릴게요.`,
       points: [plain(full.summary.line), `${Y}년: ${yr.score.score}점(${yr.score.grade}) — ${plain(yr.sections[0].lead)}`, ...full.sections.filter(x => ['personality', 'wealth', 'career', 'love'].includes(x.id)).map(x => `${x.title}: ${plain(x.lead)}`)],
-      advice: ['"언제 이직하면 좋을까?", "2028년 재물운은?", "결혼은 언제쯤?", "나는 어떤 성격이야?"처럼 주제와 시기를 넣어 물어보면 더 정확히 답할 수 있어요.', '자유로운 질문에는 AI 상담 모드가 더 잘 답합니다.'],
+      advice: ['"언제 이직하면 좋을까?", "2028년 재물운은?", "결혼은 언제쯤?", "나는 어떤 성격이야?"처럼 주제와 시기를 넣어 물어보면 더 정확히 답할 수 있어요.'],
       why: [], links: [{ menu: 'saju', label: '종합풀이 보기' }],
     };
   }
@@ -447,97 +446,7 @@
     qa: ['언제 이직하면 좋을까?', '결혼은 언제쯤 할까?', '2028년 재물운은?', '나는 어떤 성격이야?', '앞으로 조심할 시기는?', '행운의 색은?'],
   };
 
-  // ============================================================
-  // AI 상담용 사주 보고서
-  // ============================================================
-
-  function buildReport(s, partners = [], now = new Date()) {
-    const Y = now.getFullYear();
-    const lines = [];
-    const h = (t) => lines.push(`\n## ${t}`);
-    const add = (t) => lines.push(plain(t));
-    const sec = (x) => { add(`### ${x.title}`); add(`요약: ${x.lead}`); x.paragraphs.forEach(p => add(`- ${p}`)); if (x.why.length) add(`근거: ${x.why.map(plain).join(' / ')}`); };
-    const p = s.pillars, b = s.birth;
-
-    h('기본 정보');
-    add(`오늘 날짜: ${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`);
-    add(`이름: ${s.name} / 성별: ${isMale(s) ? '남' : '여'} / 띠: ${s.animal}`);
-    add(`양력 ${b.solarDate.year}-${b.solarDate.month}-${b.solarDate.day}, 음력 ${s.lunar.year}-${s.lunar.isLeapMonth ? '윤' : ''}${s.lunar.month}-${s.lunar.day}, ${b.hourKnown ? `입력 시각 ${b.clock.slice(11)} → 보정 ${b.corrected.slice(11)}` : '태어난 시간 모름(시주 없음)'}`);
-    add('사주팔자 (기둥: 천간/지지, 천간 십성/지지 십성, 지장간, 12운성, 12신살):');
-    for (const [k, l] of [['year', '년주'], ['month', '월주'], ['day', '일주'], ['hour', '시주']]) {
-      const x = p[k];
-      if (x) add(`- ${l} ${x.hanja}(${x.text}): ${x.stemTenGod}/${x.branchTenGod}, 지장간 ${x.hiddenStems.map(z => z.text).join('')}, ${x.twelveStage}, ${x.sinsal12.byYear}`);
-    }
-    add(`오행 개수/비중: ${Object.entries(s.elements.count).map(([e, c]) => `${e} ${c}개(${s.elements.percent[e]}%)`).join(', ')}`);
-    add(`신강약: ${s.strength.level}(${s.strength.score}점) / 격국: ${s.gyeokguk.name} / 공망: ${s.gongmang.hanja}`);
-    add(`합충: ${s.relations.map(r => r.name).join(', ') || '없음'} / 신살: ${[...new Set(s.sinsal.map(x => x.name))].join(', ') || '없음'}`);
-
-    h('해석 방법과 용신');
-    add(`현재 해석 기준: ${s.yongsin.method || '억부법'} → 용신 ${s.yongsin.yongsin}, 희신 ${s.yongsin.huisin}, 기신 ${s.yongsin.gisin}, 구신 ${s.yongsin.gusin}`);
-    if (s.methods) for (const id of M.METHOD_ORDER) { const m = s.methods.byId[id]; add(`- ${m.name}: ${m.verdict}${m.kind === 'yongsin' ? ` (용신 ${m.yongsin}${m.applicable ? '' : ', 조건 불충족→억부'})` : ''}`); }
-
-    h('종합풀이');
-    I.readFullSaju(s).sections.forEach(sec);
-
-    h('성격·성향');
-    const pe = I.readPersona(s);
-    add(`유형: ${pe.typeName} — ${pe.oneLine}`);
-    pe.axes.forEach(a => add(`- ${a.left}↔${a.right}: ${a.right} 쪽 ${a.value}% (${a.text})`));
-    pe.sections.forEach(sec);
-
-    if (s.daeun) {
-      h('대운 (10년 운)');
-      add(`${s.daeun.direction}, 대운수 ${s.daeun.daeunNum}, 첫 대운 시작 ${s.daeun.startDate}`);
-      I.readDaeun(s, Y).list.forEach(d => add(`- ${d.age}세(${d.startYear}~) ${d.hanja}: ${d.stemTenGod}/${d.branchTenGod}, ${d.twelveStage}, 점수 ${d.score}${d.current ? ' ← 현재' : ''}`));
-    }
-
-    h('인생 흐름 (해마다 운 점수: 세운 60% + 대운 40%, 충·삼재 보정)');
-    const life = I.readLifeFlow(s, now);
-    add(`힘든 시기 기준 ${life.hardCut}점 이하, 잘 풀리는 시기 기준 ${life.goodCut}점 이상`);
-    add(life.points.filter(x => x.year >= Y - 30 && x.year <= Y + 30).map(x => `${x.year}(${x.age}세) ${x.seun.hanja} ${x.score}${x.events.length ? `[${x.events.join('; ')}]` : ''}`).join(' | '));
-    life.sections.forEach(sec);
-
-    for (const y of [Y, Y + 1]) {
-      h(`${y}년 운세`);
-      const r = I.readYear(s, y);
-      add(`${r.pillar.hanja}년, ${r.score.score}점(${r.score.grade}), 천간 ${r.pillar.stemTenGod}/지지 ${r.pillar.branchTenGod}${r.pillar.samjae ? `, ${r.pillar.samjae}` : ''}`);
-      r.sections.forEach(sec);
-      r.categories.forEach(([k, v]) => add(`- ${k}: ${v}`));
-      add('월별: ' + r.months.map(m => `${m.startDate.slice(0, 10)}~ ${m.hanja} ${m.score}점(${m.stemTenGod}, ${m.line})`).join(' | '));
-    }
-
-    h('오늘');
-    const td = I.readToday(s, now);
-    add(`${td.pillar.hanja}일, ${td.score.score}점 — ${td.sections[0].lead}`);
-
-    if (partners.length) {
-      h('궁합');
-      for (const o of partners) {
-        const c = I.readCompat(s, o, now);
-        add(`### ${c.names[0]} ♥ ${c.names[1]}: ${c.score}점(${c.grade})`);
-        add(`상대 정보: ${o.name}, ${isMale(o) ? '남' : '여'}, ${o.birth.solarDate.year}-${o.birth.solarDate.month}-${o.birth.solarDate.day}, 사주 ${['year', 'month', 'day', 'hour'].filter(k => o.pillars[k]).map(k => o.pillars[k].hanja).join(' ')}, 일간 ${o.dayMaster.text}${o.dayMaster.element}, 용신 ${o.yongsin.yongsin}`);
-        c.categories.forEach(x => add(`- ${x.title} ${x.score}점(비중 ${x.weight}%): ${x.verdict} — ${x.text}`));
-        c.sections.forEach(sec);
-      }
-      if (partners.length === 2) { const cmp = I.compareCompat(s, partners[0], partners[1]); sec(cmp.section); }
-    }
-    return lines.join('\n');
-  }
-
-  // AI 상담 지침 (고정 문자열이라 프롬프트 캐시가 잘 맞는다)
-  const SYSTEM_PROMPT = `당신은 사주명리 상담가입니다. 사용자는 이 사이트에서 자신의 사주 풀이를 본 뒤 질문합니다. 함께 제공되는 <saju_report>는 이 사이트의 계산 엔진이 만든 분석 결과이며, 답변의 유일한 근거입니다.
-
-답변 원칙
-1. 근거는 반드시 <saju_report>에서 찾으세요. 보고서에 없는 간지·점수·신살을 새로 계산하거나 지어내지 마세요. 보고서의 데이터(연도별 점수, 대운, 십성, 월별 점수)를 조합해 추론할 수는 있지만, 그럴 때는 추론이라고 밝히세요.
-2. 구성: 첫 문단에 질문에 대한 결론을 한두 문장으로 먼저 말하세요. 이어서 "### 근거"에 어떤 글자·운·점수 때문인지 2~4개를 목록으로, "### 조언"에 실천할 수 있는 조언 1~3개를 쓰세요. 시기를 묻는 질문에는 연도와 나이를 구체적으로 답하세요.
-3. 일반인이 이해할 수 있는 쉬운 말로 쓰고, 전문 용어는 처음 나올 때 괄호로 짧게 풀이하세요. 짧은 문단과 목록을 쓰고, 마크다운은 **굵게**, 목록(-), 소제목(###)만 쓰세요.
-4. 사주는 경향을 보여 줄 뿐 확정된 미래가 아닙니다. 단정하지 말고 가능성으로 말하고, 불안을 키우는 표현은 피하세요. 좋은 점과 조심할 점을 균형 있게 말하세요.
-5. 건강·법률·투자·임신처럼 실제 결정이 걸린 질문에는 사주 관점의 답 뒤에 전문가 상담을 함께 권하세요.
-6. 보고서에 궁합 정보가 있으면 상대에 대한 질문에 활용하세요. 없으면 궁합 메뉴에서 상대를 입력하라고 안내하세요.
-7. 사주와 무관한 질문에는 사주로 답할 수 있는 범위를 정중히 안내하세요.
-8. 한국어로 답하세요.`;
-
-  const api = { answer, buildReport, SYSTEM_PROMPT, SUGGESTIONS, TOPICS, detectTopic, parseTime, topicYear };
+  const api = { answer, SUGGESTIONS, TOPICS, detectTopic, parseTime, topicYear };
   if (node) module.exports = api;
   else root.SajuQA = api;
 })(typeof window !== 'undefined' ? window : globalThis);
