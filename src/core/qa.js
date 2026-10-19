@@ -147,7 +147,7 @@
     const groups = topicGroups(s, topic);
     const groupText = groups.length ? `${groups.join('·')}` : '';
     const out = { topic, title: `${label}에 대한 답변`, points: [], advice: TOPIC_ADVICE[topic] || [], why: [], links: [] };
-    out.why.push(`${label}은(는) ${groups.length ? `사주에서 ${groupText}의 기운으로 봅니다.` : '이동 관련 신살과 충으로 봅니다.'} 해마다 이 기운이 들어오는지, 그 기운이 나에게 필요한 기운(용신 ${s.yongsin.yongsin}·희신 ${s.yongsin.huisin})인지, 내 사주와 부딪히는지(충)를 함께 계산했습니다.`);
+    out.why.push(`${josa(label, '은/는')} ${groups.length ? `사주에서 ${groupText}의 기운으로 봅니다.` : '이동 관련 신살과 충으로 봅니다.'} 해마다 이 기운이 들어오는지, 그 기운이 나에게 필요한 기운(용신 ${s.yongsin.yongsin}·희신 ${s.yongsin.huisin})인지, 내 사주와 부딪히는지(충)를 함께 계산했습니다.`);
     out.why.push(`해석 기준: ${s.yongsin.method || '억부법'} (화면 위 '해석 방법'에서 바꿀 수 있어요)`);
     if (/(살|세)/.test(t.raw || '')) out.why.push('질문 속 나이는 한국식 세는 나이(태어난 해 1살)로 계산했습니다.');
 
@@ -185,6 +185,45 @@
     out.why.push(`10년 동안 해마다 ${label} 점수를 계산해 높은 순·낮은 순으로 골랐습니다: ${rows.map(r => `${r.year} ${r.score}`).join(', ')}`);
     out.links.push({ menu: 'life', label: '인생 흐름 보기' });
     return out;
+  }
+
+  // 연애·결혼: 배우자 정밀 분석(배우자 별·배우자궁·방해 구조·결혼 신살)과 해마다 인연 기운
+  function answerSpouse(s, topic, t, Y) {
+    const sp = I.analyzeSpouse(s);
+    const label = topic === 'marriage' ? '결혼' : '연애';
+    const birth = s.birth.solarDate.year;
+    const head = [
+      `배우자운: ${sp.grade} (지수 ${sp.index}점)`,
+      ...sp.factors.slice().sort((x, y) => Math.abs(y.w) - Math.abs(x.w)).slice(0, 2).map(f => `${f.title}: ${f.text}`),
+    ];
+    const why = [
+      `${isMale(s) ? '남성은 재성(정재=아내, 편재=연인)' : '여성은 관성(정관=남편, 편관=연인)'}을 배우자의 별로 봅니다. 원국 위치: ${sp.occText}`,
+      '해마다 인연 기운: 배우자 별이 그해 천간(정 +25·편 +18)·지지(정 +20·편 +14)에 들어오는지, 배우자궁과 육합(+18)·삼합(+10)·충(+6), 홍란(+12)·천희(+8)·도화(+6), 대운의 배우자 별(+8), 그해 전체 운을 더해 계산했습니다.',
+      `배우자운 요인: ${sp.factors.map(f => `${f.title} ${f.w > 0 ? '+' : ''}${f.w}`).join(', ')}`,
+    ];
+    if (t.years.length && !t.when) {
+      const rows = t.years.map(y => I.marriageYears(s, y, y)[0]);
+      const r = rows[0];
+      const lv = r.score >= 35 ? '인연 기운이 강한 해' : r.score >= 20 ? '인연 기운이 있는 해' : '인연 기운이 약한 해';
+      return {
+        topic, title: `${label}에 대한 답변`, conclusion: `${r.year}년(${r.age}세)은 ${label} 면에서 ${lv}입니다 (${r.score}점).`,
+        points: [...rows.map(x => `${x.year}년 ${x.hanja}: ${x.reasons.length ? x.reasons.join(', ') : '배우자 별·배우자궁에 들어오는 기운이 없음'} (그해 전체 운 ${x.overall}점)`), ...head],
+        advice: [r.score >= 35 ? (r.year < Y ? '이 해에 연애나 결혼과 관련된 일이 있었는지 떠올려 보세요.' : '소개·모임에 적극적으로 나가고, 마음에 둔 사람이 있다면 관계를 진전시키기 좋은 해예요.') : '이 해에는 새 인연보다 지금 관계를 다지거나 자신을 가꾸는 데 집중해 보세요.'],
+        why, links: [{ menu: 'saju', label: '연애·결혼운 자세히 보기' }],
+      };
+    }
+    const past = t.past && !t.years.length;
+    const from = past ? birth + 19 : Math.max(Y, t.years[0] || Y), to = past ? Y - 1 : from + 11;
+    const rows = I.marriageYears(s, from, to);
+    const best = rows.slice().sort((a, b) => b.score - a.score).slice(0, 3).sort((a, b) => a.year - b.year);
+    return {
+      topic, title: `${label}에 대한 답변`,
+      conclusion: past ? `지나온 해 중 ${label} 기운이 가장 강했던 해는 ${best.map(x => `${x.year}년(${x.age}세)`).join(', ')}입니다.` : `${from}~${to}년 중 ${label} 기운이 가장 강한 해는 ${best.map(x => `${x.year}년(${x.age}세)`).join(', ')}입니다.`,
+      points: [...best.map(x => `${x.year}년 ${x.hanja} (${x.score}점): ${x.reasons.join(', ') || '그해 전체 운이 좋음'}`), ...head],
+      advice: [past ? '이 해들에 실제로 연애·결혼과 관련된 일이 있었는지 비교해 보면, 앞으로의 인연 시기를 가늠하는 데 도움이 돼요.' : topic === 'marriage' ? '결혼은 두 사람의 준비가 가장 중요합니다. 좋은 해는 그 결정을 밀어주는 바람 정도로 보세요.' : '인연 기운이 강한 해에는 소개·모임에 적극적으로 나가 보세요.'],
+      why: [...why, `연도별 인연 점수: ${rows.map(x => `${x.year} ${x.score}`).join(', ')}`],
+      links: [{ menu: 'saju', label: '연애·결혼운 자세히 보기' }],
+    };
   }
 
   function answerHealth(s, t, Y) {
@@ -318,7 +357,7 @@
       return {
         topic: 'compat', title: '두 사람 비교', conclusion: plain(c.section.lead),
         points: [...c.section.paragraphs.map(plain).slice(1), ...c.results.map(r => `${r.names[1]}: ${r.score}점(${r.grade}) — 잘 맞는 점 ${r.good.slice(0, 2).join(', ') || '없음'}`)],
-        advice: c.results.flatMap(r => r.advice.slice(0, 1).map(a => `${r.names[1]}와(과): ${plain(a)}`)),
+        advice: c.results.flatMap(r => r.advice.slice(0, 1).map(a => `${josa(r.names[1], '과/와')}: ${plain(a)}`)),
         why: c.section.why.map(plain), links: [{ menu: 'compat', label: '궁합 자세히 보기' }],
       };
     }
@@ -416,7 +455,8 @@
     let out;
     const aboutUs = /우리|둘이|두 사람|그 사람|상대|같이|함께|남자친구랑|여자친구랑/.test(q);
     if ((id === 'marriage' || id === 'love') && aboutUs && (ctx.partners || []).length) out = answerCompat(s, ctx.partners, now, q);
-    else if (['career', 'business', 'money', 'exam', 'love', 'marriage', 'children', 'people', 'move'].includes(id)) out = answerTopic(s, id, t, Y);
+    else if (id === 'love' || id === 'marriage') out = answerSpouse(s, id, t, Y);
+    else if (['career', 'business', 'money', 'exam', 'children', 'people', 'move'].includes(id)) out = answerTopic(s, id, t, Y);
     else if (id === 'health') out = answerHealth(s, t, Y);
     else if (id === 'personality') out = answerPersonality(s);
     else if (id === 'ideal') out = answerIdeal(s);

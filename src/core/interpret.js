@@ -5,7 +5,8 @@
 (function (root) {
   const E = typeof module !== 'undefined' && typeof require !== 'undefined'
     ? require('./saju.js')
-    : { STEMS, STEMS_HANJA, BRANCHES, BRANCHES_HANJA, ELEMENTS, tenGod, findRelations, getSeun, getWolun, getIljin, currentDaeun, compatibility };
+    : { STEMS, STEMS_HANJA, BRANCHES, BRANCHES_HANJA, ELEMENTS, tenGod, findRelations, getSeun, getWolun, getIljin, currentDaeun, compatibility, sinsal12 };
+  const DB = typeof module !== 'undefined' && typeof require !== 'undefined' ? require('../data/myeongri.js') : root.Myeongri;
 
   // ============================================================
   // 1. 지식 데이터
@@ -443,6 +444,24 @@
       ]);
   }
 
+  function readIlju(s) {
+    const d = s.pillars.day, ds = s.dayMaster.stem;
+    const info = DB.ilju(ds, d.branch);
+    const god = d.branchTenGod, stage = d.twelveStage;
+    return section('ilju', '일주 — 태어난 날의 기둥', `${d.hanja}(${d.text}) 일주: ${josa(STEM_PERSONA[ds].nick, '이/가')} ${god}의 자리에 앉은 모습입니다.`, [
+      `일주는 나(일간 ${s.dayMaster.hanja})와 내가 앉은 자리(일지 ${E.BRANCHES_HANJA[d.branch]})로 이뤄진, 사주에서 가장 나다운 기둥입니다.`,
+      `일지 ${god}: ${TEN_GOD_INFO[god].trait}`,
+      `배우자 자리로 보면: ${DB.TEN_GOD_POSITION[god][2]}.`,
+      `12운성 ${stage}: ${STAGE_INFO[stage][1]}.`,
+      ...info.notes,
+      `납음: ${d.nayin}(${d.nayinHanja})`,
+    ], [
+      `일지 십성은 일지 속 대표 천간(정기 ${d.hiddenStems[d.hiddenStems.length - 1].hanja})으로 정합니다.`,
+      `12운성은 일간 ${josa(s.dayMaster.hanja, '이/가')} 일지 ${E.BRANCHES_HANJA[d.branch]}에서 갖는 기운의 단계입니다.`,
+      info.tags.length ? `특수 일주: ${info.tags.join(', ')} (사주명리 지식 DB의 일주 목록 기준)` : '백호·괴강·간여지동·음양차착·고란 같은 특수 일주에는 해당하지 않습니다.',
+    ]);
+  }
+
   function readElements(s) {
     const { count, percent, missing, excess } = s.elements;
     const sorted = ELS.slice().sort((a, b) => percent[b] - percent[a]);
@@ -478,6 +497,9 @@
       `${josa(top, '이/가')} 가장 강합니다(${GROUP_INFO[top].plain}). ${GROUP_INFO[top].many}`,
     ];
     for (const x of absent) paragraphs.push(`${josa(x, '이/가')} 없습니다. ${GROUP_INFO[x].none}`);
+    const yk = DB.YUKCHIN[isMale(s) ? 'M' : 'F'];
+    const posKey = { 년: 'year', 월: 'month', 일: 'day', 시: 'hour' };
+    for (const c of chars(s)) paragraphs.push(`${c.label} ${c.hanja} ${c.god}(${yk[c.god]}): ${DB.TEN_GOD_POSITION[c.god][DB.POS_INDEX[posKey[c.label[0]]]]}`);
     const why = chars(s).map(c => {
       const info = TEN_GOD_INFO[c.god];
       return `${c.label} ${c.hanja}(${c.yinyang}${c.element}) → ${c.god}: ${info.how}`;
@@ -608,40 +630,178 @@
       ]);
   }
 
-  function readLove(s) {
-    const male = isMale(s);
-    const star = male ? '재성' : '관성';
-    const g = s.strength.groups;
-    const cnt = groupCount(s, star);
-    const p = s.pillars;
-    const paragraphs = [];
-    let lead;
-    if (cnt === 0 && g[star] < 8) {
-      lead = '인연은 운에서 찾아오는 타입입니다.';
-      paragraphs.push(`${male ? '남성' : '여성'}에게 이성과 배우자를 뜻하는 [[${star}]]이 원국에 거의 없습니다. 연애에 무심하거나 인연이 늦게 올 수 있지만, ${star} 운이 들어오는 해에 좋은 인연을 만나기 쉽습니다.`);
-    } else if (cnt >= 3) {
-      lead = '이성 인연이 많은 사주입니다.';
-      paragraphs.push(`이성을 뜻하는 ${josa(star, '이/가')} 많아 인기가 있고 인연이 자주 찾아옵니다. 대신 마음이 흔들리기 쉬우니 신중하게 고르는 것이 좋습니다.`);
-    } else {
-      lead = '안정적인 인연운입니다.';
-      paragraphs.push(`이성을 뜻하는 ${josa(star, '이/가')} 적당히 있어 자연스럽게 인연을 만나는 편입니다.`);
+  // ------------------------------------------------------------
+  // 연애·배우자 정밀 분석 (지식 DB: data/myeongri.js)
+  // ------------------------------------------------------------
+  const favorableRole = (r) => r === '용신' || r === '희신';
+
+  function analyzeSpouse(s) {
+    const male = isMale(s), rule = DB.SPOUSE_RULES.star[male ? 'M' : 'F'];
+    const p = s.pillars, g = s.strength.groups, yb = p.year.branch, day = p.day;
+    const starEl = groupElement(s, rule.group);
+    const occ = [];
+    for (const [k, l] of POS) {
+      const x = p[k];
+      if (!x) continue;
+      if (k !== 'day' && GOD_GROUP[x.stemTenGod] === rule.group) occ.push({ k, l, layer: '천간', god: x.stemTenGod, stem: x.stem });
+      for (const h of x.hiddenStems) if (GOD_GROUP[h.tenGod] === rule.group) occ.push({ k, l, layer: h.role === '정기' ? '지지' : '지장간', god: h.tenGod, stem: h.stem, branch: x.branch });
     }
-    paragraphs.push(`[[배우자궁]](일지 ${E.BRANCHES_HANJA[p.day.branch]})의 십성은 ${josa(p.day.branchTenGod, '으로/로')}, ${SPOUSE_BY_GOD[p.day.branchTenGod]}`);
-    const dayRel = s.relations.filter(r => r.members.includes('일지'));
-    for (const r of dayRel) {
-      if (['충', '형', '원진', '해', '파'].includes(r.type)) paragraphs.push(`배우자궁에 ${r.type}(${r.name})이 있어 관계에 변화나 마찰이 생기기 쉽습니다. 서로의 공간을 존중하고 대화로 푸는 습관이 중요합니다.`);
-      else if (['육합', '삼합', '반합', '천간합', '방합'].includes(r.type)) paragraphs.push(`배우자궁에 합(${r.name})이 있어 인연이 깊고 정이 많습니다.`);
+    const factors = [];
+    const add = (w, title, text, why) => factors.push({ w, title, text, why });
+    const vis = occ.filter(o => o.layer === '천간'), rooted = occ.filter(o => o.layer === '지지');
+    const pct = g[rule.group];
+    const who = male ? '아내' : '남편';
+    const occText = occ.length ? occ.map(o => `${o.l}${o.layer === '천간' ? '간' : o.layer === '지지' ? '지' : '지 속'} ${E.STEMS_HANJA[o.stem]}(${o.god})`).join(', ') : '없음';
+
+    // 1. 배우자 별의 존재와 뿌리
+    if (!occ.length) add(-2, '배우자 별이 원국에 없음', `배우자를 뜻하는 ${josa(rule.group, '이/가')} 겉에도 속에도 없습니다. 연애에 무심하거나 인연이 늦게 오는 편이며, 배우자 별이 운에서 들어오는 해에 인연이 닿기 쉽습니다.`, `${rule.group} 위치: 없음`);
+    else if (!vis.length && !rooted.length) add(-1, '배우자 별이 속에만 숨어 있음', '지지 속(지장간)에만 있어 마음을 늦게 열거나, 드러나지 않는 조용한 인연을 만나는 편입니다.', `위치: ${occText}`);
+    else if (vis.length && rooted.length) add(2, '배우자 별이 드러나고 뿌리도 있음', '천간에 드러나고 지지에 뿌리를 내려, 인연이 분명하고 관계를 오래 지키는 힘이 있습니다.', `위치: ${occText}`);
+    else if (vis.length) add(0, '배우자 별이 드러났지만 뿌리가 약함', '인연은 쉽게 오지만, 오래 지키려면 서로 노력이 필요한 구조입니다.', `위치: ${occText}`);
+    else add(1, '배우자 별이 지지에 뿌리내림', '겉으로 드러나진 않아도 땅에 뿌리를 둬 실속 있고 안정적인 인연입니다.', `위치: ${occText}`);
+    if (pct >= 35) add(-1.5, male ? '재성 과다' : '관살 과다',
+      male ? (s.strength.strong ? '이성 인연이 많아 마음이 흔들리기 쉽습니다. 감당할 힘은 있지만 한 사람에게 집중하는 노력이 필요합니다.' : '재다신약 — 이성 문제로 지치거나 상대에게 끌려가기 쉽습니다.')
+        : '이성 인연이 많거나 관계에서 압박을 받기 쉽습니다. 결혼 후 책임감이 무겁게 느껴질 수 있습니다.', `${rule.group} 비중 ${pct}% (35% 이상이면 과다)`);
+
+    // 2. 정·편 혼잡
+    const hasJ = occ.some(o => o.god === rule.jeong && o.layer !== '지장간'), hasP = occ.some(o => o.god === rule.pyeon && o.layer !== '지장간');
+    const bothVisible = vis.some(o => o.god === rule.jeong) && vis.some(o => o.god === rule.pyeon);
+    if (hasJ && hasP) add(bothVisible ? -1.5 : -1, male ? '정재·편재 혼잡' : '관살혼잡', `${josa(`${rule.jeong}(${who})`, '과/와')} ${rule.pyeon}(연인)이 ${bothVisible ? '천간에 함께 드러나' : '함께 자리 잡아'}, 끌리는 사람이 여럿이거나 연애 상대와 결혼 상대가 달라지기 쉽습니다.`, `${bothVisible ? '천간' : '천간·지지 정기'}에 ${rule.jeong}과 ${rule.pyeon}이 모두 있음`);
+    else if (hasP && !hasJ && occ.length) add(-0.3, `${rule.pyeon}만 드러남`, `${who}의 별(${rule.jeong})보다 연인의 별(${rule.pyeon})이 드러나, 설레는 연애는 잘 하지만 결혼으로 이어지기까지 시간이 걸릴 수 있습니다.`, `드러난 배우자 별: ${rule.pyeon}`);
+
+    // 3. 배우자 별의 길흉
+    const role = roleOf(s, starEl);
+    if (favorableRole(role)) add(2, '배우자 별이 나에게 필요한 기운', `배우자를 뜻하는 ${elName(starEl)} 기운이 나의 ${role}입니다. 배우자를 만나면 삶이 안정되고 배우자 덕을 보는 구조입니다.`, `배우자 별 ${starEl} = ${role} (해석 기준: ${s.yongsin.method || '억부법'})`);
+    else if (role === '기신' || role === '구신') add(-1, '배우자 별이 부담되는 기운', `배우자를 뜻하는 ${elName(starEl)} 기운이 나에게는 ${role}입니다. 관계에서 내가 맞추고 희생하는 일이 많을 수 있어, 서로의 몫을 분명히 하는 것이 좋습니다.`, `배우자 별 ${starEl} = ${role}`);
+
+    // 4. 배우자 별의 자리
+    const posKeys = [...new Set(occ.filter(o => o.layer !== '지장간').map(o => o.k))];
+    if (posKeys.includes('day')) add(1.5, '배우자궁에 배우자 별', DB.SPOUSE_RULES.starPosition.day, `일지(배우자궁)에 ${rule.group}`);
+    const positions = posKeys.map(k => DB.SPOUSE_RULES.starPosition[k]);
+
+    // 5. 합으로 묶임
+    const stemsAt = ['year', 'month', 'hour'].filter(k => p[k]).map(k => ({ k, stem: p[k].stem, god: p[k].stemTenGod }));
+    for (const o of vis) {
+      if (Math.abs(o.stem - s.dayMaster.stem) === 5) { add(1, '배우자 별이 나와 합', `천간의 배우자 별 ${josa(E.STEMS_HANJA[o.stem], '이/가')} 나(일간)와 합을 이뤄 서로 강하게 끌리고 정이 깊습니다.`, `${E.STEMS_HANJA[o.stem]}${s.dayMaster.hanja} 천간합`); continue; }
+      const partner = stemsAt.find(x => x.k !== o.k && Math.abs(x.stem - o.stem) === 5);
+      if (!partner) continue;
+      if (GOD_GROUP[partner.god] === '비겁') add(-1.5, '쟁합(경쟁자)', `${POS_LABEL_KO[partner.k]}의 ${partner.god}(나와 같은 기운)이 내 배우자 별과 합을 이뤄, 연애에서 경쟁자가 생기거나 삼각관계를 조심해야 하는 구조입니다.`, `${E.STEMS_HANJA[partner.stem]}${E.STEMS_HANJA[o.stem]} 합`);
+      else add(-1, '배우자 별이 합으로 묶임', `배우자 별 ${josa(E.STEMS_HANJA[o.stem], '이/가')} ${POS_LABEL_KO[partner.k]}의 ${E.STEMS_HANJA[partner.stem]}과 묶여 제 역할이 약해집니다. 인연이 늦거나 마음이 다른 데로 향하기 쉽습니다.`, `${E.STEMS_HANJA[partner.stem]}${E.STEMS_HANJA[o.stem]} 합(합거)`);
     }
-    const dohwa = ['year', 'month', 'day', 'hour'].filter(k => p[k] && (p[k].sinsal12.byYear === '년살(도화)' || p[k].sinsal12.byDay === '년살(도화)'));
-    if (dohwa.length) paragraphs.push('도화살이 있어 사람을 끄는 매력이 있습니다.');
-    if (s.sinsal.some(x => x.name === '홍염살')) paragraphs.push('홍염살이 있어 분위기 있는 매력으로 이성의 관심을 받습니다.');
-    const starEl = groupElement(s, star);
-    return section('love', '연애·결혼운', lead, paragraphs, [
-      `사주에서 남성은 내가 다스리는 재성(정재=아내), 여성은 나를 다스리는 관성(정관=남편)을 배우자의 별로 봅니다. ${s.name || '당신'}의 배우자 별은 ${star}(${starEl} 기운)이며, 원국에 ${cnt}개 있습니다.`,
-      `일주의 아래 글자(일지)는 배우자가 앉는 자리라 배우자의 성향과 결혼 생활을 보여 줍니다.`,
-      `${starEl} 기운이 들어오는 해(세운)나 대운에 인연이 생기기 쉽습니다.`,
+
+    // 6. 공망
+    for (const o of rooted) if (s.gongmang.hanja.includes(E.BRANCHES_HANJA[o.branch])) add(-1, '배우자 별이 공망', '배우자 별이 뿌리내린 자리가 비어 있어(공망), 기대만큼 채워지지 않거나 인연이 늦을 수 있습니다.', `공망 ${s.gongmang.hanja}`);
+
+    // 7. 배우자궁(일지)
+    const palEl = day.branchElement, pr = roleOf(s, palEl);
+    if (favorableRole(pr)) add(1.5, '배우자궁이 필요한 기운', `배우자 자리(일지 ${E.BRANCHES_HANJA[day.branch]})가 ${josa(elName(palEl), '으로/로')} 나의 ${pr}입니다. 결혼 후 안정되고 배우자 덕이 있는 자리입니다.`, `일지 ${E.BRANCHES_HANJA[day.branch]} = ${palEl} = ${pr}`);
+    else if (pr === '기신' || pr === '구신') add(-1, '배우자궁이 부담되는 기운', `배우자 자리(일지 ${E.BRANCHES_HANJA[day.branch]})가 나의 ${pr}이라, 결혼 생활에서 스트레스를 받거나 내가 많이 맞춰야 할 수 있습니다.`, `일지 ${E.BRANCHES_HANJA[day.branch]} = ${palEl} = ${pr}`);
+    const stage = DB.SPOUSE_RULES.palaceStage[day.twelveStage];
+    if (stage) add(stage[0], `배우자궁 12운성 ${day.twelveStage}`, stage[1], `일간 ${josa(s.dayMaster.hanja, '이/가')} 일지 ${E.BRANCHES_HANJA[day.branch]}에서 ${day.twelveStage}(12운성)`);
+    const seenRel = new Set();
+    for (const r of s.relations.filter(r => r.members.includes('일지'))) {
+      const other = r.members.find(m => m !== '일지');
+      const key = r.type + other;
+      if (seenRel.has(key)) continue;
+      seenRel.add(key);
+      if (r.type === '충') add(other === '월지' ? -2 : other === '시지' ? -1.5 : -1, `배우자궁 충(${other})`, other === '월지' ? '배우자와 부모·직장 환경이 부딪히거나, 결혼 생활의 거처가 자주 바뀌기 쉽습니다.' : other === '시지' ? '자녀·노후 문제로 부부가 부딪히기 쉽습니다.' : '집안 배경이나 가치관 차이로 부딪히기 쉽습니다.', r.name);
+      else if (r.type === '형') add(-1, '배우자궁 형', '서로를 바꾸려다 마찰이 생기기 쉽습니다.', r.name);
+      else if (r.type === '원진') add(-1, '배우자궁 원진', '가까울수록 이유 없는 서운함이 쌓이기 쉽습니다.', r.name);
+      else if (r.type === '해' || r.type === '파') add(-0.5, `배우자궁 ${r.type}`, '작은 오해가 쌓이기 쉬워 대화가 중요합니다.', r.name);
+      else if (['육합', '삼합', '반합', '방합'].includes(r.type)) add(1, `배우자궁 ${r.type}`, '배우자 자리가 다른 기둥과 합을 이뤄 결혼 생활이 안정되기 쉽습니다.', r.name);
+    }
+
+    // 8. 방해 구조
+    if (male && g.비겁 >= 35 && occ.length) add(-2, '군겁쟁재', '나와 같은 기운(비겁)이 많아 배우자 별을 나눠 가지는 구조입니다. 연애 경쟁, 이성·금전 문제를 조심해야 합니다.', `비겁 ${g.비겁}%`);
+    if (!male) {
+      if (g.식상 >= 25 && s.tenGodCount.상관 >= 1 && occ.some(o => o.god === '정관')) add(-2, '상관견관', '말과 표현의 기운(상관)이 남편의 별(정관)을 누르는 구조입니다. 남편에게 잔소리하거나 말로 다투기 쉬워 표현을 부드럽게 하는 것이 중요합니다.', `식상 ${g.식상}%, 상관 ${s.tenGodCount.상관}개, 정관 있음`);
+      else if (g.식상 >= 30) add(-1, '식상 과다', '표현의 기운이 강해 남편 별을 누르는 구조입니다. 상대에 대한 기대치가 높거나 말다툼이 생기기 쉽습니다.', `식상 ${g.식상}%`);
+      if (g.비겁 >= 35) add(-1, '비겁 과다', '나와 같은 기운이 많아 남편 별이 나뉘는 구조입니다. 독립심이 강해 결혼이 늦을 수 있습니다.', `비겁 ${g.비겁}%`);
+    }
+
+    // 9. 결혼 관련 신살
+    const branchesAt = Object.keys(POS_LABEL_KO).filter(k => p[k]).map(k => ({ k, b: p[k].branch }));
+    const hr = DB.hongran(yb), ch = DB.cheonhui(yb), gg = DB.gosinGwasuk(yb);
+    const at = (b) => branchesAt.filter(x => x.b === b && x.k !== 'year').map(x => POS_LABEL_KO[x.k]);
+    if (at(hr).length) add(0.5, '홍란성', DB.MARRIAGE_SINSAL.홍란, `${at(hr).join('·')}에 ${E.BRANCHES_HANJA[hr]}`);
+    if (at(ch).length) add(0.5, '천희성', DB.MARRIAGE_SINSAL.천희, `${at(ch).join('·')}에 ${E.BRANCHES_HANJA[ch]}`);
+    if (at(gg.gosin).length) add(male ? -1 : -0.5, '고신살', DB.MARRIAGE_SINSAL.고신, `${at(gg.gosin).join('·')}에 ${E.BRANCHES_HANJA[gg.gosin]}`);
+    if (at(gg.gwasuk).length) add(male ? -0.5 : -1, '과숙살', DB.MARRIAGE_SINSAL.과숙, `${at(gg.gwasuk).join('·')}에 ${E.BRANCHES_HANJA[gg.gwasuk]}`);
+    const tags = DB.ilju(s.dayMaster.stem, day.branch).tags;
+    if (tags.includes('음양차착살')) add(-1, '음양차착살', DB.MARRIAGE_SINSAL.음양차착살, `일주 ${day.hanja}`);
+    if (tags.includes('고란살') && !male) add(-1, '고란살', DB.MARRIAGE_SINSAL.고란살, `일주 ${day.hanja}`);
+    if (tags.includes('간여지동')) add(-1, '간여지동', DB.MARRIAGE_SINSAL.간여지동, `일주 ${day.hanja}`);
+
+    const total = factors.reduce((a, f) => a + f.w, 0);
+    const index = Math.max(15, Math.min(95, Math.round(60 + total * 6)));
+    const grade = index >= 75 ? '배우자 인연이 좋은 사주' : index >= 60 ? '무난한 배우자운' : index >= 45 ? '노력이 필요한 배우자운' : '굴곡이 있는 배우자운';
+    return { male, rule, starEl, occ, occText, positions, factors, index, grade, palace: { branch: day.branch, god: day.branchTenGod, stage: day.twelveStage, element: palEl, role: pr }, hongran: hr, cheonhui: ch };
+  }
+  const POS_LABEL_KO = { year: '년주', month: '월주', day: '일주', hour: '시주' };
+  const GUNGWI_LABEL = { year: '년주', month: '월주', day: '일지(배우자궁)', hour: '시주' };
+
+  // 해마다 인연·결혼 기운: 배우자 별 유입, 일지 합·충, 홍란·천희, 도화, 대운의 배우자 별, 그해 전체 운
+  function marriageYears(s, from, to) {
+    const sp = analyzeSpouse(s), rule = sp.rule, yb = s.pillars.year.branch;
+    const out = [];
+    for (let y = from; y <= to; y++) {
+      const se = E.getSeun(s, y, y)[0];
+      const dae = s.daeun ? E.currentDaeun(s, y) : null;
+      let sc = 0;
+      const reasons = [];
+      if (GOD_GROUP[se.stemTenGod] === rule.group) { sc += se.stemTenGod === rule.jeong ? 25 : 18; reasons.push(`천간에 ${se.stemTenGod}(${se.stemTenGod === rule.jeong ? '배우자' : '연인'}의 별)`); }
+      if (GOD_GROUP[se.branchTenGod] === rule.group) { sc += se.branchTenGod === rule.jeong ? 20 : 14; reasons.push(`지지에 ${se.branchTenGod}(${se.branchTenGod === rule.jeong ? '배우자' : '연인'}의 별)`); }
+      const dayRel = se.relations.filter(r => r.members.includes('일지'));
+      if (dayRel.some(r => r.type === '육합')) { sc += 18; reasons.push('배우자궁(일지)과 육합'); }
+      else if (dayRel.some(r => r.type === '삼합' || r.type === '반합')) { sc += 10; reasons.push('배우자궁(일지)과 삼합·반합'); }
+      if (dayRel.some(r => r.type === '충')) { sc += 6; reasons.push('배우자궁 충(만남·이별 등 큰 변화의 계기)'); }
+      if (se.branch === sp.hongran) { sc += 12; reasons.push('홍란성(결혼의 별)'); }
+      if (se.branch === sp.cheonhui) { sc += 8; reasons.push('천희성(경사의 별)'); }
+      if (E.sinsal12(yb, se.branch) === '년살(도화)') { sc += 6; reasons.push('도화(매력·인기)'); }
+      if (dae && (GOD_GROUP[dae.stemTenGod] === rule.group || GOD_GROUP[dae.branchTenGod] === rule.group)) { sc += 8; reasons.push(`대운 ${dae.hanja}에 배우자 별`); }
+      const ys = yearScore(s, se, dae);
+      sc += (ys.score - 50) * 0.25;
+      out.push({ year: y, age: se.age, hanja: se.hanja, score: Math.round(sc), reasons, overall: ys.score });
+    }
+    return out;
+  }
+
+  // 인연 시기: 지나온 해(확인용)와 앞으로의 해
+  function spouseTiming(s, now = new Date()) {
+    const Y = now.getFullYear(), birth = s.birth.solarDate.year;
+    const from = birth + 19, to = birth + 59;
+    const all = marriageYears(s, from, Math.max(to, Y + 12));
+    const pick = (list) => list.filter(x => x.score >= 25).sort((a, b) => b.score - a.score).slice(0, 4).sort((a, b) => a.year - b.year);
+    return { past: pick(all.filter(x => x.year < Y)), future: pick(all.filter(x => x.year >= Y && x.year <= Y + 12 && x.year <= to)), all };
+  }
+
+  const yearsText = (list) => list.map(x => `${x.year}년(${x.age}세)`).join(', ');
+
+  function readLove(s, now = new Date()) {
+    const sp = analyzeSpouse(s), tm = spouseTiming(s, now);
+    const p = s.pillars, pal = sp.palace;
+    const good = sp.factors.filter(f => f.w > 0).sort((a, b) => b.w - a.w);
+    const bad = sp.factors.filter(f => f.w < 0).sort((a, b) => a.w - b.w);
+    return section('love', '연애·결혼운', `${sp.grade} (배우자운 지수 ${sp.index}점)`, [
+      good.length ? `좋게 작용하는 점: ${good.map(f => f.title).join(' / ')}` : '좋게 작용하는 점: 두드러진 요인이 없어요.',
+      bad.length ? `조심할 점: ${bad.map(f => f.title).join(' / ')}` : '조심할 점: 두드러진 요인이 없어요.',
+      tm.future.length ? `앞으로 인연·결혼 기운이 강한 해: ${yearsText(tm.future)}` : '앞으로 인연·결혼 기운: 12년 안에 뚜렷하게 강한 해는 보이지 않아요. 시기보다 만남의 기회를 넓히는 노력이 중요해요.',
+      tm.past.length ? `지나온 인연의 해(맞았는지 확인해 보세요): ${yearsText(tm.past)}` : null,
+      `배우자 별: ${sp.male ? '남성' : '여성'}은 ${sp.rule.group}(${sp.rule.jeong}=${sp.male ? '아내' : '남편'}, ${sp.rule.pyeon}=연인)을 봅니다. 원국 위치 — ${sp.occText}.`,
+      sp.positions.length ? `인연을 만나는 경로: ${sp.positions.join(' / ')}` : null,
+      `배우자궁: 일지 ${E.BRANCHES_HANJA[pal.branch]}(${pal.god}) — ${SPOUSE_BY_GOD[pal.god]}`,
+      ...good.slice(0, 3).map(f => `${f.title}: ${f.text}`),
+      ...bad.slice(0, 4).map(f => `${f.title}: ${f.text}`),
+      `어울리는 상대: 일간이 ${STEMS_BY_EL[s.yongsin.yongsin]}(${s.yongsin.yongsin})인 사람은 내게 필요한 기운을 채워 주고, ${STEMS_BY_EL[sp.starEl]}(${sp.starEl})인 사람은 내 배우자 별의 기운이라 끌리기 쉬워요.`,
+    ], [
+      `배우자운 지수 = 60 + 요인 가중치 합 × 6 (15~95). 요인별: ${sp.factors.map(f => `${f.title} ${f.w > 0 ? '+' : ''}${f.w}`).join(', ')}`,
+      ...sp.factors.map(f => `${f.title} — 근거: ${f.why}`),
+      '인연의 해: 배우자 별이 그해 천간(정 +25·편 +18)·지지(정 +20·편 +14)에 들어오는지, 배우자궁과 육합(+18)·삼합(+10)·충(+6), 홍란(+12)·천희(+8)·도화(+6), 대운의 배우자 별(+8), 그해 전체 운을 더해 25점 이상인 해를 골랐습니다.',
+      '판단 기준은 사주명리 지식 DB(배우자 별의 자리·혼잡·합거·공망, 배우자궁 12운성·충합, 군겁쟁재·상관견관, 홍란·천희·고신·과숙·음양차착·고란·간여지동)에 따릅니다.',
     ]);
   }
+  const STEMS_BY_EL = { 목: '갑·을', 화: '병·정', 토: '무·기', 금: '경·신', 수: '임·계' };
+
 
   function readHealth(s) {
     const { percent, missing, excess } = s.elements;
@@ -716,7 +876,7 @@
         line: `${STEM_INFO[s.dayMaster.stem].image}처럼 ${josa(STEM_INFO[s.dayMaster.stem].strength.split(', ')[0], '이/가')} 강점이며, ${elName(y.yongsin)} 기운을 가까이할 때 운이 열립니다.`,
       },
       sections: [
-        explainChart(s), readDayMaster(s), readElements(s), readTenGods(s), readStrength(s), readYongsin(s),
+        explainChart(s), readDayMaster(s), readIlju(s), readElements(s), readTenGods(s), readStrength(s), readYongsin(s),
         readPersonality(s), readWealth(s), readCareer(s), readLove(s), readHealth(s), readSinsal(s), readRelations(s),
       ],
     };
@@ -1045,6 +1205,7 @@
     const male = isMale(s);
     const star = male ? '재성' : '관성';
     const starCnt = groupCount(s, star);
+    const spo = analyzeSpouse(s);
     const bigeop = groupCount(s, '비겁');
     const hasDohwa = ['year', 'month', 'day', 'hour'].some(k => p[k] && (p[k].sinsal12.byYear === '년살(도화)' || p[k].sinsal12.byDay === '년살(도화)'));
     const why1 = `일간 ${d.hanja}(${d.text}${d.element}) → "${sp.nick}"`;
@@ -1089,12 +1250,12 @@
         sp.love,
         gp1.love,
         `[[배우자궁]](일지)의 십성이 ${josa(p.day.branchTenGod, '이라/라')} ${SPOUSE_BY_GOD[p.day.branchTenGod]}`,
-        starCnt === 0 ? `이성을 뜻하는 ${josa(star, '이/가')} 원국에 없어 연애에 천천히 마음을 여는 편이고, 인연은 운에서 들어올 때 찾아옵니다.`
-          : starCnt >= 3 ? `이성을 뜻하는 ${josa(star, '이/가')} 많아 인기가 있고 인연이 자주 찾아옵니다. 좋은 사람을 신중하게 고르세요.`
-          : `이성을 뜻하는 ${josa(star, '이/가')} 적당히 있어 자연스럽게 인연을 만납니다.`,
+        `배우자운: ${spo.grade} (지수 ${spo.index}점)`,
+        ...spo.factors.slice().sort((x, y) => Math.abs(y.w) - Math.abs(x.w)).slice(0, 2).map(f => `${f.title}: ${f.text}`),
         hasDohwa ? '도화살이 있어 사람을 끄는 매력이 있습니다.' : null,
       ], [
-        `${male ? '남성은 재성(내가 다스리는 기운)' : '여성은 관성(나를 다스리는 기운)'}을 이성으로 봅니다. 원국에 ${starCnt}개 있습니다.`,
+        `${male ? '남성은 재성(정재=아내, 편재=연인)' : '여성은 관성(정관=남편, 편관=연인)'}을 배우자의 별로 봅니다. 원국 위치: ${spo.occText} (${starCnt}개)`,
+        `배우자운 요인: ${spo.factors.map(f => `${f.title} ${f.w > 0 ? '+' : ''}${f.w}`).join(', ') || '없음'}`,
         `일지 ${E.BRANCHES_HANJA[p.day.branch]}는 배우자가 앉는 자리로, 내가 원하는 연인의 모습과 결혼 생활을 보여 줍니다.`,
         `일간 ${d.hanja}의 기질("${sp.nick}")이 연애 스타일의 바탕이 됩니다.`,
       ]),
@@ -1214,14 +1375,14 @@
       const per = [a, b].map(x => {
         const se = E.getSeun(x, y, y)[0];
         const r = yearScore(x, se, x.daeun ? E.currentDaeun(x, y) : null);
-        const star = groupElement(x, isMale(x) ? '재성' : '관성');
-        return { score: r.score, se, star, starIn: se.stemElement === star || se.branchElement === star, dayChung: r.events.some(e => e.includes('나 자신·배우자')) };
+        const mr = marriageYears(x, y, y)[0];
+        return { score: r.score, se, marry: mr.score, marryWhy: mr.reasons, dayChung: r.events.some(e => e.includes('나 자신·배우자')) };
       });
       rows.push({ year: y, ganzhi: per[0].se.hanja, a: per[0], b: per[1] });
     }
     const both = rows.filter(r => r.a.score >= 55 && r.b.score >= 55);
     const careful = rows.filter(r => (r.a.score <= 42 && r.b.score <= 50) || (r.b.score <= 42 && r.a.score <= 50) || (r.a.dayChung && r.b.dayChung));
-    const marry = rows.filter(r => (r.a.starIn || r.b.starIn) && r.a.score >= 45 && r.b.score >= 45 && !(r.a.dayChung && r.b.dayChung));
+    const marry = rows.filter(r => (r.a.marry >= 25 || r.b.marry >= 25) && r.a.marry + r.b.marry >= 35 && r.a.score >= 42 && r.b.score >= 42 && !(r.a.dayChung && r.b.dayChung));
     return { rows, both, careful, marry };
   }
 
@@ -1298,15 +1459,18 @@
     let ss = 50;
     const ssWhy = [], ssText = [];
     for (const [x, y] of [[a, b], [b, a]]) {
-      const starGroup = isMale(x) ? '재성' : '관성';
-      const starEl = groupElement(x, starGroup);
-      ssWhy.push(`${x.name}(${isMale(x) ? '남' : '여'})의 배우자 별은 ${starGroup} = ${starEl} 기운, ${y.name}의 일간은 ${y.dayMaster.element}`);
-      if (y.dayMaster.element === starEl) { ss += 22; ssText.push(`${josa(y.name, '은/는')} ${x.name} 사주에서 배우자 별에 해당하는 ${elName(starEl)} 기운 그 자체예요. 사주로 보면 "${x.name}의 짝"에 가까운 사람이에요.`); }
-      else if (y.elements.percent[starEl] >= 25) { ss += 10; ssText.push(`${josa(y.name, '이/가')} ${x.name}의 배우자 별 기운(${starEl})을 많이 가지고 있어 이성으로 끌리기 쉬워요.`); }
+      const rule = DB.SPOUSE_RULES.star[isMale(x) ? 'M' : 'F'];
+      const starEl = groupElement(x, rule.group);
+      const god = E.tenGod(x.dayMaster.stem, y.dayMaster.stem);
+      ssWhy.push(`${x.name}(${isMale(x) ? '남' : '여'})의 배우자 별은 ${rule.group}(${starEl}). ${x.name}에게 ${y.name}의 일간 ${y.dayMaster.hanja}는 ${god}`);
+      if (god === rule.jeong) { ss += 22; ssText.push(`${x.name}에게 ${josa(y.name, '은/는')} ${rule.jeong} — 사주가 말하는 ${isMale(x) ? '아내' : '남편'}의 별 그 자체예요. 결혼 상대로서의 인연이 깊어요.`); }
+      else if (god === rule.pyeon) { ss += 12; ssText.push(`${x.name}에게 ${josa(y.name, '은/는')} ${rule.pyeon} — 연인의 별이라 강하게 끌리지만, 결혼까지 가려면 서로 맞춰 가는 노력이 필요해요.`); }
+      else if (y.elements.percent[starEl] >= 25) { ss += 6; ssText.push(`${josa(y.name, '이/가')} ${x.name}의 배우자 별 기운(${starEl})을 많이 가지고 있어 이성으로 끌리기 쉬워요.`); }
+      if (y.dayMaster.element === x.pillars.day.branchElement) { ss += 6; ssText.push(`${josa(y.name, '은/는')} ${x.name}의 배우자 자리(일지 ${E.BRANCHES_HANJA[x.pillars.day.branch]})와 같은 기운이라, ${josa(x.name, '이/가')} 바라는 배우자의 모습에 가까워요.`); ssWhy.push(`${y.name} 일간 오행 ${y.dayMaster.element} = ${x.name} 일지 오행`); }
     }
     add('star', '배우자 별', 12, ss, ss >= 80 ? '사주가 말하는 짝' : ss >= 60 ? '이성으로 끌리는 기운' : '끌림보다는 정으로 쌓는 관계',
       ssText.join(' ') || '두 사람 모두 상대의 배우자 별 기운이 두드러지진 않아요. 첫눈에 반하기보다 함께 시간을 보내며 정이 깊어지는 관계예요.',
-      ['사주에서 남성은 재성(내가 다스리는 기운), 여성은 관성(나를 다스리는 기운)을 배우자의 별로 봅니다.', ...ssWhy]);
+      ['사주에서 남성은 재성(정재=아내, 편재=연인), 여성은 관성(정관=남편, 편관=연인)을 배우자의 별로 봅니다. 상대의 일간이 내게 정(正)이면 배우자감(+22), 편(偏)이면 연인감(+12)으로 봅니다.', ...ssWhy]);
 
     // 7. 생활 리듬
     const diff = (i) => Math.abs(ax[i].value - bx[i].value);
@@ -1397,11 +1561,12 @@
       section('compat-timing', '함께하는 시기', timing.marry.length ? `${timing.marry[0].year}년이 약속하기 좋은 해예요.` : timing.both.length ? `${timing.both[0].year}년에 함께 힘이 실려요.` : '앞으로 몇 년은 함께 다지는 시기예요.', [
         timing.both.length ? `함께 좋은 해: ${yearList(timing.both)}. 두 사람 모두 운이 순한 해라 이사, 여행, 큰 계획을 함께 추진하기 좋아요.` : '함께 좋은 해: 앞으로 6년 안에 두 사람 모두 크게 좋은 해는 겹치지 않아요. 한 사람이 힘들 때 다른 사람이 받쳐 주는 구조예요.',
         timing.careful.length ? `함께 조심할 해: ${yearList(timing.careful)}. 두 사람 모두 지치기 쉬운 해라 작은 일로 다툴 수 있어요. 큰 결정은 미루고 서로를 챙겨 주세요.` : '함께 조심할 해: 두 사람이 동시에 크게 흔들리는 해는 보이지 않아요.',
-        timing.marry.length ? `결혼·약속하기 좋은 해: ${yearList(timing.marry)}. 배우자 별의 기운이 들어오고 두 사람 운이 모두 무난한 해예요.` : '결혼·약속하기 좋은 해: 앞으로 6년 안에는 배우자 별이 뚜렷하게 들어오는 해가 없어요. 시기보다 두 사람의 준비가 더 중요해요.',
+        timing.marry.length ? `결혼·약속하기 좋은 해: ${yearList(timing.marry)}. ${timing.marry.slice(0, 2).map(r => `${r.year}년 — ${[...r.a.marryWhy.map(w => `${na}: ${w}`), ...r.b.marryWhy.map(w => `${nb}: ${w}`)].slice(0, 3).join(', ')}`).join(' / ')}` : '결혼·약속하기 좋은 해: 앞으로 6년 안에는 두 사람의 인연 기운이 함께 강해지는 해가 없어요. 시기보다 두 사람의 준비가 더 중요해요.',
       ], [
         `해마다 각자의 운 점수(세운 60% + 대운 40%)를 따로 계산해 겹쳐 봤습니다: ${timing.rows.map(r => `${r.year} ${na} ${r.a.score}·${nb} ${r.b.score}`).join(' / ')}`,
         '함께 좋은 해: 두 사람 모두 55점 이상. 함께 조심할 해: 한 사람이 42점 이하이고 다른 사람도 50점 이하이거나, 두 사람 모두 배우자궁이 충을 받는 해.',
-        '결혼하기 좋은 해: 둘 중 한 사람에게 배우자 별(남성 재성, 여성 관성)의 기운이 들어오고, 두 사람 모두 45점 이상인 해.',
+        '결혼하기 좋은 해: 각자의 인연·결혼 기운(배우자 별 유입, 배우자궁 합, 홍란·천희, 대운의 배우자 별)을 계산해 한 사람이 25점 이상이고 두 사람 합이 35점 이상, 두 사람 그해 운이 모두 42점 이상인 해.',
+        `해마다 인연 기운: ${timing.rows.map(r => `${r.year} ${na} ${r.a.marry}·${nb} ${r.b.marry}`).join(' / ')}`,
       ]),
       section('compat-advice', '두 사람을 위한 조언', weak.length ? `${weak[0].title}에 신경 쓰면 훨씬 좋아져요.` : '지금처럼만 지내면 좋아요.', advice, [
         '점수가 낮은 항목부터 조언을 골랐습니다.',
@@ -1582,7 +1747,7 @@
     return { points, current: Y, hardCut, goodCut, periods: { hard, good }, months, sections };
   }
 
-  const api = { GLOSSARY, ELEMENT_INFO, STEM_INFO, TEN_GOD_INFO, GROUP_INFO, STAGE_INFO, SINSAL_INFO, RELATION_INFO, POSITION_INFO, SAENG, GEUK, readFullSaju, readPersona, readToday, readYear, readDaeun, readCompat, compareCompat, readLifeFlow, luckScore, yearScore, luckyItems, personaAxes, STEM_PERSONA, GROUP_PERSONA, fixJosa, josa };
+  const api = { GLOSSARY, ELEMENT_INFO, STEM_INFO, TEN_GOD_INFO, GROUP_INFO, STAGE_INFO, SINSAL_INFO, RELATION_INFO, POSITION_INFO, SAENG, GEUK, readFullSaju, readPersona, readToday, readYear, readDaeun, readCompat, compareCompat, readLifeFlow, analyzeSpouse, marriageYears, spouseTiming, luckScore, yearScore, luckyItems, personaAxes, STEM_PERSONA, GROUP_PERSONA, fixJosa, josa };
   if (typeof module !== 'undefined') module.exports = api;
   else root.Interpret = api;
 })(typeof window !== 'undefined' ? window : globalThis);

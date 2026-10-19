@@ -8,6 +8,7 @@
   const E = typeof module !== 'undefined' && typeof require !== 'undefined'
     ? require('./saju.js')
     : { STEMS, STEMS_HANJA, BRANCHES, BRANCHES_HANJA, STEM_ELEMENT, BRANCH_ELEMENT, sinsal12 };
+  const DB = typeof module !== 'undefined' && typeof require !== 'undefined' ? require('../data/myeongri.js') : root.Myeongri;
 
   const ELS = ['목', '화', '토', '금', '수'];
   const HANJA = { 목: '木', 화: '火', 토: '土', 금: '金', 수: '水' };
@@ -47,7 +48,7 @@
     johu: {
       name: '조후법', hanja: '調候', kind: 'yongsin', source: '『궁통보감(난강망)』',
       short: '태어난 계절의 추위·더위, 건조함·습함을 맞춘다.',
-      how: '사람도 자연의 일부라, 한겨울에 태어나면 따뜻한 불이, 한여름에 태어나면 시원한 물이 먼저 필요하다고 봅니다. 사주의 온도와 습도를 계산해 가장 시급한 기운을 찾습니다.',
+      how: '사람도 자연의 일부라, 한겨울에 태어나면 따뜻한 불이, 한여름에 태어나면 시원한 물이 먼저 필요하다고 봅니다. 궁통보감의 조후 용신표(일간 10 × 태어난 달 12)에서 1순위 천간을 용신으로 쓰고, 사주의 온도·습도로 얼마나 시급한지를 봅니다.',
     },
     gyeok: {
       name: '격국법', hanja: '格局', kind: 'yongsin', source: '『자평진전』',
@@ -111,7 +112,7 @@
   const HUM_BASE = [1.5, 1, 0, 0.5, 1, -1.5, -1.5, -1, -0.5, -0.5, -1, 1.5];
 
   function johu(s) {
-    const p = s.pillars, ep = s.elements.percent, mb = p.month.branch;
+    const p = s.pillars, ep = s.elements.percent, mb = p.month.branch, ds = s.dayMaster.stem;
     const branches = ['year', 'month', 'day', 'hour'].filter(k => p[k]).map(k => p[k].branch);
     const wet = branches.filter(b => b === 4 || b === 1).length;   // 辰丑: 젖은 흙
     const dry = branches.filter(b => b === 10 || b === 7).length;  // 戌未: 마른 흙
@@ -120,30 +121,30 @@
     const tWord = T <= -3 ? '매우 추움' : T <= -1.5 ? '추움' : T < 1.5 ? '온화함' : T < 3 ? '더움' : '매우 더움';
     const hWord = H >= 1.5 ? '습함' : H <= -1.5 ? '건조함' : '적당함';
     const month = `${E.BRANCHES[mb]}월(${E.BRANCHES_HANJA[mb]})`;
-    let y = null, need = '', urgent = false;
-    if (T <= -1.5) { y = '화'; urgent = T <= -3; need = '추운 사주라 몸을 데워 줄 불(火)이 가장 먼저 필요합니다. 특히 태양 같은 丙火가 좋고, 불을 살려 줄 나무(木)가 함께 있으면 더 좋습니다.'; }
-    else if (T >= 1.5) { y = '수'; urgent = T >= 3; need = '뜨거운 사주라 열을 식혀 줄 물(水)이 가장 먼저 필요합니다. 큰물인 壬水나 단비인 癸水가 좋고, 물의 근원이 되는 쇠(金)가 함께 있으면 더 좋습니다.'; }
-    else if (H >= 1.5) { y = '화'; need = '습한 사주라 눅눅함을 말려 줄 불(火)이 필요합니다.'; }
-    else if (H <= -1.5) { y = '수'; need = '메마른 사주라 촉촉하게 적셔 줄 물(水)이 필요합니다.'; }
-    const why = [
-      `온도 ${T} = ${month}의 기본 온도 ${TEMP_BASE[mb]} + (화 ${ep.화}% − 수 ${ep.수}%) ÷ 15`,
-      `습도 ${H} = ${month}의 기본 습도 ${HUM_BASE[mb]} + (수 − 화) ÷ 20 + 젖은 흙(辰丑) ${wet}개 − 마른 흙(戌未) ${dry}개`,
-      '온도나 습도가 ±1.5를 넘으면 조절이 필요하다고 보고, ±3을 넘으면 매우 시급하다고 봅니다.',
-    ];
-    if (!y) {
-      const b = baseYongsin(s);
-      return {
-        applicable: false, yongsin: b.yongsin, urgent: false, temp: T, hum: H,
-        verdict: `온도(${tWord})·습도(${hWord})가 고름 → 조후 조절 불필요`,
-        paragraphs: [`${month}에 태어났지만 사주 전체의 온도는 ${tWord}, 습도는 ${hWord}이라 계절 조절이 시급하지 않습니다. 이럴 때 조후법은 억부법의 결론(${elName(b.yongsin)})을 따릅니다.`],
-        why,
-      };
-    }
+    // 궁통보감 조후 용신표: 1순위 천간의 오행이 조후 용신
+    const need = DB.johuStems(ds, mb);
+    const y = E.STEM_ELEMENT[need[0]];
+    const stemName = (st) => `${E.STEMS_HANJA[st]}${E.STEM_ELEMENT[st]}`;
+    const visible = ['year', 'month', 'hour'].filter(k => p[k]).map(k => p[k].stem);
+    const hiddenAll = ['year', 'month', 'day', 'hour'].filter(k => p[k]).flatMap(k => p[k].hiddenStems.map(h => h.stem));
+    const have = need.filter(st => visible.includes(st));
+    const rooted = need.filter(st => !visible.includes(st) && hiddenAll.includes(st));
+    const urgent = Math.abs(T) >= 3;
     return {
-      applicable: true, yongsin: y, urgent, temp: T, hum: H,
-      verdict: `${tWord}·${hWord} → ${elName(y)}${urgent ? '이 시급' : '으로 조절'}`,
-      paragraphs: [`${month}에 태어났고 사주의 온도는 ${tWord}(${T}), 습도는 ${hWord}(${H})입니다.`, need],
-      why,
+      applicable: true, yongsin: y, urgent, temp: T, hum: H, stems: need,
+      verdict: `${E.STEMS_HANJA[ds]}일간 ${month}생 → ${stemName(need[0])} 1순위${urgent ? ' (매우 시급)' : ''}`,
+      paragraphs: [
+        `궁통보감은 ${month}에 태어난 ${E.STEMS_HANJA[ds]}(${E.STEMS[ds]}) 일간에게 ${need.map(stemName).join(' → ')} 순서로 필요하다고 봅니다. 1순위인 ${stemName(need[0])}의 ${elName(y)} 기운이 조후 용신입니다.`,
+        `사주 전체의 온도는 ${tWord}(${T}), 습도는 ${hWord}(${H})입니다. ${urgent ? '계절의 치우침이 커서 조후가 무엇보다 시급한 사주입니다.' : '계절의 치우침이 심하지 않아 조후는 균형을 다듬는 정도로 작용합니다.'}`,
+        have.includes(need[0]) ? `1순위 ${stemName(need[0])}이 원국 천간에 드러나 있어 조후를 스스로 갖춘 사주입니다.`
+          : rooted.includes(need[0]) ? `1순위 ${stemName(need[0])}이 지지 속에만 숨어 있어, 이 글자가 운에서 천간으로 드러날 때 크게 힘을 얻습니다.`
+          : `1순위 ${stemName(need[0])}이 원국에 없어, 이 글자가 들어오는 해와 대운에 특히 크게 좋아진다고 봅니다.${have.length + rooted.length ? ` (보조 글자 ${[...have, ...rooted].map(stemName).join(', ')}은 원국에 있음)` : ''}`,
+      ],
+      why: [
+        `궁통보감 조후 용신표: ${E.STEMS_HANJA[ds]}일간 × ${E.BRANCHES_HANJA[mb]}월 = ${need.map(st => E.STEMS_HANJA[st]).join('')}`,
+        `온도 ${T} = ${month}의 기본 온도 ${TEMP_BASE[mb]} + (화 ${ep.화}% − 수 ${ep.수}%) ÷ 15 · 습도 ${H} = 기본 ${HUM_BASE[mb]} + (수 − 화) ÷ 20 + 젖은 흙(辰丑) ${wet}개 − 마른 흙(戌未) ${dry}개`,
+        '온도가 ±3을 넘으면 매우 시급하다고 보고, 종합 투표에서 조후의 비중을 1.5배로 둡니다.',
+      ],
     };
   }
 
@@ -233,7 +234,7 @@
       applicable: true, yongsin: y,
       verdict: `병: ${d} 과다(${ep[d]}%) → 약: ${elName(y)}`,
       paragraphs: [
-        `${elName(d)} 기운이 ${ep[d]}%로 지나치게 많아 사주의 균형을 무너뜨리는 "병"이 됩니다. ${strong ? '이미 힘이 센데 같은 편이 더 많아 고집과 과욕으로 흐르기 쉽습니다.' : `힘이 약한 나를 ${groupOf(s, d)}이(가) 거세게 몰아붙이는 구조입니다.`}`,
+        `${elName(d)} 기운이 ${ep[d]}%로 지나치게 많아 사주의 균형을 무너뜨리는 "병"이 됩니다. ${strong ? '이미 힘이 센데 같은 편이 더 많아 고집과 과욕으로 흐르기 쉽습니다.' : `힘이 약한 나를 ${groupOf(s, d)}${batchim(groupOf(s, d)) ? '이' : '가'} 거세게 몰아붙이는 구조입니다.`}`,
         `${y}극${d}: ${elName(y)}이 ${d}를 다스리는 "약"입니다. 병이 깊은 만큼 약이 들어오는 시기(운)에 극적으로 좋아진다고 봅니다.`,
       ],
       why: [`오행 비중 1위 ${d} ${ep[d]}% (35% 이상이면 과다)`, `${d}는 나에게 ${groupOf(s, d)}이고, 사주는 ${s.strength.level}입니다.`],

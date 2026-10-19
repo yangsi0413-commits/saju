@@ -50,7 +50,7 @@ for (let i = 0; i < 400; i++) {
     check('인생 흐름 점수', life.points.every(x => x.score >= 10 && x.score <= 95), label);
     scan('인생 흐름', life);
     const full = I.readFullSaju(s);
-    check('종합 섹션 수', full.sections.length === 13, label);
+    check('종합 섹션 수', full.sections.length === 14, label);
     scan('종합', full);
     scan('오늘', I.readToday(s, new Date(2026, 9, 19)));
     const y = I.readYear(s, 2026);
