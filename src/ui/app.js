@@ -10,6 +10,7 @@
   const MENUS = [
     { id: 'saju', icon: '命', title: '사주팔자 종합풀이', desc: '타고난 성격·재물·직업·연애·건강을 근거와 함께 풀어 드려요', people: 1 },
     { id: 'persona', icon: '性', title: '성격·성향 풀이', desc: '일·친구·연애에서 나는 어떤 사람일까? 가치관까지', people: 1 },
+    { id: 'life', icon: '時', title: '인생 흐름 · 과거와 미래', desc: '힘들었던 시기와 앞으로 잘 풀릴 시기를 근거와 함께', people: 1 },
     { id: 'today', icon: '日', title: '오늘의 운세', desc: '오늘의 일진이 내 사주에 주는 영향', people: 1 },
     { id: 'year', icon: '年', title: '신년운세', desc: '한 해의 흐름과 달마다의 운', people: 1 },
     { id: 'daeun', icon: '運', title: '대운 · 인생 흐름', desc: '10년마다 바뀌는 인생의 큰 계절', people: 1 },
@@ -33,7 +34,11 @@
     { name: '민준', gender: 'M', calendar: 'solar', isLeapMonth: false, year: 1991, month: 2, day: 20, hour: 15, minute: 0, place: '대구', timeMode: 'solar', longitude: 128.6, ziHour: 'next' },
   ];
 
-  const state = { profiles: DEMO ? DEMO_PROFILES : loadProfiles(), year: THIS_YEAR };
+  const METHOD_KEY = 'saju.method';
+  const loadMethod = () => { try { return localStorage.getItem(METHOD_KEY) || 'consensus'; } catch { return 'consensus'; } };
+  const state = { profiles: DEMO ? DEMO_PROFILES : loadProfiles(), year: THIS_YEAR, method: params.get('method') || loadMethod(), route: '' };
+  // 사주 계산 + 고른 해석 방법(학파)의 용신 적용
+  const analyze = (p) => Methods.applyMethod(analyzeSaju(p), state.method, THIS_YEAR);
 
   // ============================================================
   // 저장 (이 기기에만)
@@ -53,9 +58,23 @@
 
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   // [[용어]] → 누르면 설명이 뜨는 버튼
-  const rich = (text) => esc(text).replace(/\[\[([^\]]+)\]\]/g, (_, t) =>
-    I.GLOSSARY[t] ? `<button type="button" class="term" data-term="${esc(t)}">${esc(t)}</button>` : esc(t));
+  const rich = (text) => esc(text)
+    .replace(/\[\[([^\]]+)\]\]/g, (_, t) => (I.GLOSSARY[t] ? `<button type="button" class="term" data-term="${esc(t)}">${esc(t)}</button>` : esc(t)))
+    .replace(/([목화토금수])\(([木火土金水])\)/g, '<b class="elw">$1($2)</b>');
   const term = (t, label = t) => `<button type="button" class="term" data-term="${esc(t)}">${esc(label)}</button>`;
+
+  // "라벨: 내용" 형태의 문단은 라벨을 따로 굵게 보여 준다
+  function paragraph(p) {
+    const m = p.match(/^([^:：.!?\[]{2,26}):\s+([\s\S]+)$/);
+    if (m) return `<div class="kv"><span class="kv-label">${rich(m[1])}</span><p>${rich(m[2])}</p></div>`;
+    return `<p>${rich(p)}</p>`;
+  }
+  const VISIBLE = 4;
+  function paragraphs(list) {
+    const head = list.slice(0, VISIBLE).map(paragraph).join('');
+    if (list.length <= VISIBLE + 1) return list.map(paragraph).join('');
+    return `${head}<details class="more"><summary>더 읽기 (${list.length - VISIBLE})</summary>${list.slice(VISIBLE).map(paragraph).join('')}</details>`;
+  }
 
   function renderSection(sec, extra = '') {
     return `
@@ -63,7 +82,7 @@
         <h2>${esc(sec.title)}</h2>
         <p class="lead">${rich(sec.lead)}</p>
         ${extra}
-        ${sec.paragraphs.map(p => `<p>${rich(p)}</p>`).join('')}
+        ${paragraphs(sec.paragraphs)}
         ${sec.why.length ? `
           <details class="why">
             <summary>왜 이렇게 풀이되나요?</summary>
@@ -349,10 +368,11 @@
   function renderResult(menuId) {
     const m = menuOf(menuId);
     if (!m || !state.profiles[0] || (m.people === 2 && !state.profiles[1])) return go(`#/input/${menuId}`);
-    const s = analyzeSaju(state.profiles[0]);
-    const body = { saju: resultSaju, persona: resultPersona, today: resultToday, year: resultYear, daeun: resultDaeun, compat: resultCompat }[menuId](s);
+    const s = analyze(state.profiles[0]);
+    const body = { saju: resultSaju, persona: resultPersona, life: resultLife, today: resultToday, year: resultYear, daeun: resultDaeun, compat: resultCompat }[menuId](s);
     app.innerHTML = `
       <a class="back" href="#/">← 운세 선택</a>
+      ${methodBar(s, menuId === 'saju')}
       ${body}
       ${otherMenus(menuId)}`;
     window.scrollTo(0, 0);
@@ -371,7 +391,8 @@
         <h2>한눈에 보기</h2>
         <div class="chips">${r.summary.keywords.map(k => `<span class="chip static">${esc(k)}</span>`).join('')}</div>
         <p class="lead">${rich(r.summary.line)}</p>
-        <nav class="toc" aria-label="목차">${r.sections.map(x => `<a href="#sec-${x.id}" data-scroll>${esc(x.title.split(' — ')[0].split(',')[0])}</a>`).join('')}</nav>
+        <ol class="keypoints" aria-label="핵심 요약">${r.sections.map(x => `
+          <li><a href="#sec-${x.id}" data-scroll><b>${esc(x.title.split(' — ')[0].split(',')[0])}</b><span>${rich(x.lead)}</span></a></li>`).join('')}</ol>
       </section>
       ${r.sections.map(x => renderSection(x, extras[x.id] || '')).join('')}`;
   }
@@ -441,6 +462,96 @@
       ${r.sections.map(x => renderSection(x)).join('')}`;
   }
 
+  // ============================================================
+  // 해석 방법(학파) 선택
+  // ============================================================
+
+  function methodBar(s, openCompare) {
+    const M = s.methods, cur = M.byId[state.method] ? state.method : 'consensus', sel = M.byId[cur];
+    const stars = (n) => '★'.repeat(n);
+    const resultHtml = sel.kind === 'yongsin' ? `
+        ${paragraphs(sel.paragraphs)}
+        ${sel.years.length ? `<div class="kv"><span class="kv-label">이 방법으로 본 좋은 해</span><p>${sel.years.map(y => `${y.year}년(${y.text}) ${stars(y.stars)}`).join(' · ')}</p></div>` : ''}
+        ${sel.daeun.length ? `<div class="kv"><span class="kv-label">힘이 실리는 대운</span><p>${esc(sel.daeun.join(' · '))}</p></div>` : ''}
+        <details class="why"><summary>왜 이렇게 보나요?</summary><ul>${sel.why.map(w => `<li>${rich(w)}</li>`).join('')}</ul></details>
+        <p class="muted small">지금 아래의 모든 풀이(용신·운세 점수·궁합)는 <b>${esc(sel.name)}</b> 기준이에요.</p>`
+      : `
+        ${paragraphs(sel.paragraphs)}
+        <details class="why"><summary>왜 이렇게 보나요?</summary><ul>${sel.why.map(w => `<li>${rich(w)}</li>`).join('')}</ul></details>
+        <p class="muted small">${esc(sel.name)}은 읽는 관점이라 용신은 바꾸지 않아요. 아래 풀이는 <b>종합</b> 기준이에요.</p>`;
+    return `
+      <section class="card method-bar" id="method-bar">
+        <div class="method-head"><h2>해석 방법</h2>${I.GLOSSARY.해석방법 ? `<button type="button" class="term small" data-term="해석방법">이게 뭔가요?</button>` : ''}</div>
+        <div class="chips method-chips" role="tablist" aria-label="해석 방법">
+          ${Methods.METHOD_ORDER.map(id => { const x = M.byId[id]; return `<button type="button" role="tab" aria-selected="${id === cur}" class="chip ${id === cur ? 'active' : ''} ${x.kind === 'lens' ? 'lens' : ''}" data-method="${id}">${esc(x.name)}</button>`; }).join('')}
+        </div>
+        <div class="method-info">
+          <p class="method-name"><b>${esc(sel.name)}</b> <span class="hanja-tag">${esc(sel.hanja)}</span> <span class="muted small">${esc(sel.short)}</span></p>
+          <p class="lead">${rich(sel.verdict)}</p>
+          <details class="method-detail" ${openCompare ? 'open' : ''}>
+            <summary>이 방법으로 본 풀이</summary>
+            <p class="muted">${esc(sel.how)} <span class="small">(${esc(sel.source)})</span></p>
+            ${resultHtml}
+          </details>
+        </div>
+        <details class="compare-methods">
+          <summary>방법별 결론 한눈에 비교</summary>
+          <div class="table-wrap"><table class="method-table">
+            <thead><tr><th scope="col">방법</th><th scope="col">결론</th><th scope="col">용신</th></tr></thead>
+            <tbody>${Methods.METHOD_ORDER.map(id => { const x = M.byId[id]; return `
+              <tr class="${id === cur ? 'on' : ''}">
+                <th scope="row"><button type="button" class="link" data-method="${id}">${esc(x.name)}</button></th>
+                <td>${rich(x.verdict)}</td>
+                <td>${x.kind === 'yongsin' ? `<b class="elw">${x.yongsin}</b>${x.applicable ? '' : '<br><span class="muted small">해당 없음→억부</span>'}` : '<span class="muted small">관점</span>'}</td>
+              </tr>`; }).join('')}</tbody>
+          </table></div>
+        </details>
+      </section>`;
+  }
+
+  // ============================================================
+  // 인생 흐름 (과거·미래)
+  // ============================================================
+
+  function lifeChart(r) {
+    const pts = r.points, W = 340, H = 190, L = 26, R = 8, T = 10, B = 24;
+    const x = (i) => L + (i / (pts.length - 1)) * (W - L - R);
+    const y = (v) => T + (1 - v / 100) * (H - T - B);
+    const nowIdx = pts.findIndex(p => p.year === r.current);
+    const smooth = pts.map((p, i) => { const w = pts.slice(Math.max(0, i - 1), i + 2); return w.reduce((a, q) => a + q.score, 0) / w.length; });
+    const line = (vals) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+    const raw = line(pts.map(p => p.score)), path = line(smooth);
+    const ticks = pts.map((p, i) => [p, i]).filter(([p]) => p.age % 10 === 1 || p.age === 1);
+    const data = esc(JSON.stringify(pts.map(p => [p.year, p.age, p.score])));
+    return `
+      <figure class="life-chart" data-points="${data}" data-w="${W}" data-l="${L}" data-r="${R}">
+        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="나이별 운 점수 그래프. 지금 ${pts[nowIdx]?.score ?? ''}점">
+          <rect x="${x(nowIdx)}" y="${T}" width="${W - R - x(nowIdx)}" height="${H - T - B}" class="future-zone"/>
+          ${[0, 50, 100].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L - 4}" y="${y(v) + 3}" class="tick" text-anchor="end">${v}</text>`).join('')}
+          <line x1="${L}" x2="${W - R}" y1="${y(r.goodCut)}" y2="${y(r.goodCut)}" class="guide"/><text x="${W - R}" y="${y(r.goodCut) - 3}" class="tick" text-anchor="end">순풍 ${r.goodCut}</text>
+          <line x1="${L}" x2="${W - R}" y1="${y(r.hardCut)}" y2="${y(r.hardCut)}" class="guide"/><text x="${W - R}" y="${y(r.hardCut) + 10}" class="tick" text-anchor="end">역풍 ${r.hardCut}</text>
+          <path d="${raw}" class="line raw"/>
+          <path d="${path}" class="line"/>
+          ${ticks.map(([p, i]) => `<text x="${x(i)}" y="${H - 8}" class="tick" text-anchor="middle">${p.age - 1}세</text>`).join('')}
+          ${nowIdx >= 0 ? `<line x1="${x(nowIdx)}" x2="${x(nowIdx)}" y1="${T}" y2="${H - B}" class="now-line"/><circle cx="${x(nowIdx)}" cy="${y(pts[nowIdx].score)}" r="4" class="now-dot"/><text x="${x(nowIdx) + 5}" y="${T + 9}" class="tick strong">지금 ${pts[nowIdx].score}점</text>` : ''}
+          <circle r="4" class="hover-dot" cx="-10" cy="-10"/>
+        </svg>
+        <div class="chart-tip" hidden></div>
+        <figcaption class="muted small"><span class="key-line"></span> 3년 평균 흐름 <span class="key-line raw"></span> 해마다 점수 · 세로는 운 점수(높을수록 순풍), 가로는 나이, 오른쪽 옅은 영역은 앞으로의 시기예요. 그래프를 누르면 그해 점수가 보여요.</figcaption>
+      </figure>`;
+  }
+
+  function resultLife(s) {
+    const r = I.readLifeFlow(s, new Date());
+    return `
+      <section class="card">
+        <h2>${esc(s.name)}님의 인생 운 그래프</h2>
+        ${lifeChart(r)}
+      </section>
+      ${r.sections.map(x => renderSection(x)).join('')}
+      ${personHeader(s)}`;
+  }
+
   function resultPersona(s) {
     const r = I.readPersona(s);
     return `
@@ -500,7 +611,7 @@
   }
 
   function resultCompat(s) {
-    const partners = state.profiles.slice(1, 3).filter(Boolean).map(p => analyzeSaju(p));
+    const partners = state.profiles.slice(1, 3).filter(Boolean).map(p => analyze(p));
     if (partners.length === 2) {
       const cmp = I.compareCompat(s, partners[0], partners[1]);
       return `
@@ -651,6 +762,12 @@
         </div>
       </section>
 
+      <section class="card">
+        <h2>해석 방법(학파) — 같은 사주, 다른 풀이</h2>
+        <p>같은 사주도 <b>무엇을 가장 중요하게 보느냐</b>에 따라 필요한 기운(용신)이 달라집니다. 결과 화면 맨 위에서 방법을 바꿔 가며 비교해 보세요.</p>
+        <dl class="glossary">${Methods.METHOD_ORDER.map(id => { const x = Methods.METHOD_INFO[id]; return `<dt>${esc(x.name)} <span class="hanja-tag">${esc(x.hanja)}</span> <span class="muted small">${esc(x.source)}</span></dt><dd><b>${esc(x.short)}</b> ${esc(x.how)}</dd>`; }).join('')}</dl>
+      </section>
+
       ${groups.map(([title, keys]) => `
         <section class="card">
           <h2>${title}</h2>
@@ -674,11 +791,39 @@
       dialog.showModal();
       return;
     }
+    const mb = e.target.closest('[data-method]');
+    if (mb) {
+      state.method = mb.dataset.method;
+      try { localStorage.setItem(METHOD_KEY, state.method); } catch { /* 저장 불가 환경은 무시 */ }
+      const [, page, arg] = (location.hash || '#/').split('/');
+      if (page === 'result') { renderResult(arg); document.getElementById('method-bar')?.scrollIntoView(); }
+      return;
+    }
     const y = e.target.closest('[data-year]');
     if (y) { state.year = Number(y.dataset.year); renderResult('year'); return; }
     const a = e.target.closest('a[data-scroll]');
     if (a) { e.preventDefault(); document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' }); }
   });
+  // 인생 그래프: 가장 가까운 해의 점수를 보여 준다
+  function chartHover(e) {
+    const fig = e.target.closest?.('.life-chart');
+    if (!fig) return;
+    const pts = JSON.parse(fig.dataset.points), svg = fig.querySelector('svg'), box = svg.getBoundingClientRect();
+    const W = Number(fig.dataset.w), L = Number(fig.dataset.l), R = Number(fig.dataset.r);
+    const vx = ((e.clientX - box.left) / box.width) * W;
+    const i = Math.max(0, Math.min(pts.length - 1, Math.round(((vx - L) / (W - L - R)) * (pts.length - 1))));
+    const [yr, age, sc] = pts[i];
+    const cx = L + (i / (pts.length - 1)) * (W - L - R), cy = 10 + (1 - sc / 100) * (190 - 34);
+    const dot = svg.querySelector('.hover-dot');
+    dot.setAttribute('cx', cx); dot.setAttribute('cy', cy);
+    const tip = fig.querySelector('.chart-tip');
+    tip.hidden = false;
+    tip.textContent = `${yr}년 · ${age}세 · ${sc}점`;
+    tip.style.left = `${Math.min(box.width - 120, Math.max(0, (cx / W) * box.width - 50))}px`;
+  }
+  document.addEventListener('pointermove', chartHover);
+  document.addEventListener('pointerdown', chartHover);
+
   dialog.addEventListener('click', (e) => { if (e.target === dialog || e.target.closest('[data-close]')) dialog.close(); });
 
   function go(hash) {

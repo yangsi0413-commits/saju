@@ -817,7 +817,7 @@ if (typeof module !== 'undefined') {
   globalThis.Solar = lj.Solar;
   globalThis.Lunar = lj.Lunar;
   module.exports = {
-    STEMS, STEMS_HANJA, BRANCHES, BRANCHES_HANJA, ELEMENTS, HIDDEN_STEMS, NAYIN,
+    STEMS, STEMS_HANJA, BRANCHES, BRANCHES_HANJA, ELEMENTS, HIDDEN_STEMS, NAYIN, STEM_ELEMENT, BRANCH_ELEMENT,
     calcSaju, analyzeSaju, resolveBirthTime, koreaOffsetAt, koreaLocalToInstant,
     tenGod, twelveStage, sinsal12, gongmangOf, findRelations,
     getSeun, getWolun, getIljin, currentDaeun, compatibility,

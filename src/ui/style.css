@@ -323,6 +323,56 @@ dialog button { margin-top: 12px; padding: 10px 16px; border-radius: 10px; borde
   .run .lp-char { animation: none; opacity: 1; transform: none; }
 }
 
+/* 가독성: 라벨 문단, 더 읽기, 핵심 요약 */
+.card p { line-height: 1.8; }
+.kv { display: grid; gap: 2px; margin: 12px 0; padding-left: 12px; border-left: 2px solid var(--line); }
+.kv-label { font-size: 13px; font-weight: 700; color: var(--accent); }
+.kv p { margin: 0; }
+.more { margin-top: 4px; }
+.more > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--accent); padding: 6px 0; }
+.elw { font-weight: 700; }
+.keypoints { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 2px; counter-reset: kp; }
+.keypoints a { display: grid; grid-template-columns: 96px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); text-decoration: none; font-size: 14px; line-height: 1.6; }
+.keypoints b { color: var(--ink-2); font-weight: 600; }
+.keypoints span { color: var(--ink); }
+
+/* 해석 방법 */
+.method-head { display: flex; justify-content: space-between; align-items: baseline; }
+.method-head .term { font-size: 13px; }
+.method-chips { margin: 8px 0 4px; }
+.method-chips .chip { padding: 6px 12px; font-size: 13px; }
+.method-chips .chip.lens { border-style: dashed; }
+.method-chips .chip.active { border-style: solid; font-weight: 700; }
+.method-info { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.method-name { margin: 0 0 4px; }
+.hanja-tag { font-family: var(--font-hanja); color: var(--accent); }
+.compare-methods { margin-top: 12px; }
+.compare-methods > summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--ink-2); }
+.method-table th, .method-table td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-size: 13px; }
+.method-table tr.on { background: var(--accent-soft); }
+.method-table th { width: 26%; }
+.link { font: inherit; font-weight: 700; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+
+/* 인생 운 그래프 */
+.life-chart { position: relative; margin: 8px 0 0; }
+.life-chart svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
+.life-chart .grid { stroke: var(--line); stroke-width: 1; }
+.life-chart .guide { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 4; }
+.life-chart .tick { fill: var(--muted); font-size: 9px; }
+.life-chart .tick.strong { fill: var(--ink); font-weight: 700; }
+.life-chart .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.life-chart .line.raw { stroke-width: 1; opacity: .35; }
+.key-line { display: inline-block; width: 16px; vertical-align: middle; border-top: 2px solid var(--accent); margin: 0 2px 0 4px; }
+.key-line.raw { border-top-width: 1px; opacity: .5; }
+.method-detail { margin-top: 4px; }
+.method-detail > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--accent); padding: 4px 0; }
+.life-chart .future-zone { fill: var(--accent-soft); opacity: .6; }
+.life-chart .now-line { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 2 3; }
+.life-chart .now-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.life-chart .hover-dot { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.chart-tip { position: absolute; top: 0; padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--bg); font-size: 12px; pointer-events: none; white-space: nowrap; }
+.life-chart figcaption { margin-top: 6px; }
+
 @media (max-width: 480px) {
   .hero h1 { font-size: 22px; }
   .pillars th, .pillars td { padding: 5px 2px; font-size: 12px; }
@@ -330,4 +380,5 @@ dialog button { margin-top: 12px; padding: 10px 16px; border-radius: 10px; borde
   .ko { font-size: 11px; }
   .card { padding: 16px; }
   .bar-row { grid-template-columns: 48px 1fr 84px; }
+  .keypoints a { grid-template-columns: 1fr; gap: 0; }
 }

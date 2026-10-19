@@ -1,6 +1,7 @@
 // 검증: 무작위 생년월일로 모든 풀이를 만들어 오류·빈 값·없는 용어가 없는지 확인
 const S = require('../src/core/saju.js');
 const I = require('../src/core/interpret.js');
+const M = require('../src/core/methods.js');
 
 let total = 0, failed = 0;
 function check(name, ok, detail = '') {
@@ -42,7 +43,12 @@ for (let i = 0; i < 400; i++) {
   const p = randomPerson();
   const label = JSON.stringify(p);
   try {
-    const s = S.analyzeSaju(p);
+    const methodId = M.METHOD_ORDER[i % M.METHOD_ORDER.length];
+    const s = M.applyMethod(S.analyzeSaju(p), methodId, 2026);
+    for (const m of s.methods.list) { scan('방법 ' + m.id, { sections: [{ lead: m.verdict, paragraphs: m.paragraphs, why: m.why }] }); if (m.kind === 'yongsin') check('방법 용신', ['목', '화', '토', '금', '수'].includes(m.yongsin), label); }
+    const life = I.readLifeFlow(s, new Date(2026, 9, 19));
+    check('인생 흐름 점수', life.points.every(x => x.score >= 10 && x.score <= 95), label);
+    scan('인생 흐름', life);
     const full = I.readFullSaju(s);
     check('종합 섹션 수', full.sections.length === 13, label);
     scan('종합', full);
@@ -53,12 +59,12 @@ for (let i = 0; i < 400; i++) {
     const d = I.readDaeun(s, 2026);
     check('대운 10개', d.list.length === 10, label);
     scan('대운', d);
-    const other = S.analyzeSaju(randomPerson());
+    const other = M.applyMethod(S.analyzeSaju(randomPerson()), methodId, 2026);
     const c = I.readCompat(s, other);
     check('궁합 점수 범위', c.score >= 0 && c.score <= 100, label);
-    check('궁합 항목 6개', c.categories.length === 6 && c.categories.every(x => x.score >= 0 && x.score <= 100), label);
+    check('궁합 항목 8개', c.categories.length === 8 && c.categories.every(x => x.score >= 0 && x.score <= 100), label);
     scan('궁합', c);
-    const cmp = I.compareCompat(s, other, S.analyzeSaju(randomPerson()));
+    const cmp = I.compareCompat(s, other, M.applyMethod(S.analyzeSaju(randomPerson()), methodId, 2026));
     check('비교 결과 2개', cmp.results.length === 2, label);
     scan('비교', { sections: [cmp.section] });
     const pe = I.readPersona(s);
@@ -76,7 +82,7 @@ for (let i = 0; i < 400; i++) {
 check('조사 받침', I.josa('목', '이/가') === '목이');
 check('조사 무받침', I.josa('화', '이/가') === '화가');
 check('조사 은/는', I.josa('경금', '은/는') === '경금은');
-check('조사 괄호', !/\((가|를|는|을|이)\)/.test(JSON.stringify(I.readCompat(S.analyzeSaju(randomPerson()), S.analyzeSaju(randomPerson())))));
+for (let k = 0; k < 30; k++) { const t = JSON.stringify(I.readCompat(M.applyMethod(S.analyzeSaju(randomPerson()), 'consensus'), M.applyMethod(S.analyzeSaju(randomPerson()), 'consensus'))); check('조사 괄호', !/\((가|를|는|을|이)\)/.test(t)); }
 
 console.log(`${total}건 중 실패 ${failed}건`);
 process.exit(failed ? 1 : 0);

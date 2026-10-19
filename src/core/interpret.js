@@ -338,6 +338,12 @@
     납음: { title: '납음오행(納音五行)', body: '60갑자 두 개씩을 묶어 붙인 30가지 이름입니다(예: 해중금 = 바닷속의 금). 소리와 이미지로 본 보조적인 오행입니다.' },
     삼재: { title: '삼재(三災)', body: '띠에 따라 9년마다 돌아오는 3년 동안의 주의 기간입니다. 들어오는 해(들삼재), 머무는 해(눌삼재), 나가는 해(날삼재)로 나눕니다. 무조건 나쁜 것이 아니라 조심하라는 신호로 봅니다.' },
     사령: { title: '사령(司令)', body: '태어난 달의 지지 속 천간들이 날짜에 따라 돌아가며 주도권을 잡는데, 태어난 날 실제로 힘을 쓰고 있던 천간입니다.' },
+    해석방법: { title: '해석 방법(학파)', body: '같은 사주라도 무엇을 가장 중요하게 보느냐에 따라 용신과 풀이가 달라집니다. 억부(힘의 균형), 조후(계절의 온도), 격국(사주의 그릇), 통관(갈등의 다리), 병약(병과 약) 등이 있고, 이 사이트는 기본으로 여러 방법의 결론을 모은 "종합"을 씁니다.' },
+    통관: { title: '통관(通關)', body: '서로 싸우는 두 기운 사이에 다리를 놓는 기운입니다. 금과 목이 싸우면 금이 낳고 목을 키우는 수가 통관 용신이 됩니다.' },
+    병약: { title: '병약(病藥)', body: '사주에서 지나친 기운을 "병", 그것을 고치는 기운을 "약"으로 보는 방법입니다. 병이 깊을수록 약이 오는 시기에 크게 발전한다고 봅니다.' },
+    상신: { title: '상신(相神)', body: '격국법에서 격(사주의 그릇)이 제대로 쓰이도록 돕는 기운입니다. 격국법의 용신에 해당합니다.' },
+    물상: { title: '물상론(物象論)', body: '글자를 자연물로 보고(庚=무쇠, 丁=촛불) 사주를 한 폭의 풍경으로 읽는 방법입니다.' },
+    인생그래프: { title: '인생 운 그래프', body: '해마다 10년 운(대운)과 1년 운(세운)이 나에게 필요한 기운인지, 내 사주와 부딪히는지를 점수로 매겨 이은 것입니다. 실제로 일어난 일을 맞히는 것이 아니라 기운이 순한 시기와 거친 시기의 경향을 보여 줍니다.' },
     배우자궁: { title: '배우자궁', body: '일주의 아래 글자(일지)로, 배우자와 결혼 생활을 보는 자리입니다.' },
   };
 
@@ -351,7 +357,7 @@
   E.BRANCHES_HANJA.forEach((h, i) => { HANJA_READING[h] = E.BRANCHES[i]; });
   Object.assign(HANJA_READING, { 木: '목', 火: '화', 土: '토', 金: '금', 水: '수' });
   const hasBatchim = (w) => {
-    const str = String(w).replace(/\([^)]*\)$/, '');
+    const str = String(w).replace(/["'”’\s]+$/, '').replace(/\([^)]*\)$/, '');
     const last = str[str.length - 1] || '';
     const c = (HANJA_READING[last] || last).charCodeAt(0);
     return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 !== 0;
@@ -512,7 +518,12 @@
     return section('yongsin', '용신 — 나에게 필요한 기운',
       `${elName(y.yongsin)} 기운이 나를 돕습니다.`,
       paragraphs,
-      [
+      y.methodWhy ? [
+        `[[해석방법]]: ${y.method}으로 정했습니다. (화면 위쪽에서 다른 방법으로 바꿔 볼 수 있어요)`,
+        ...y.methodWhy,
+        `내 일간(${dayEl(s)}) 기준으로 ${y.yongsin} 기운은 ${y.tenGodGroup}에 해당합니다.`,
+        `희신은 용신을 생해 주는 오행(${y.huisin}→${y.yongsin}), 기신은 용신을 극하는 오행(${y.gisin}→${y.yongsin})입니다.`,
+      ] : [
         `[[억부]]법으로 정했습니다. ${s.strength.level} 사주라서 ${s.strength.strong ? '넘치는 힘을 덜어 주는' : '부족한 힘을 채워 주는'} 기운이 필요합니다.`,
         `${y.reason}. 내 일간(${dayEl(s)}) 기준으로 ${josa(y.tenGodGroup, '은/는')} ${y.yongsin} 기운입니다.`,
         `희신은 용신을 생해 주는 오행(${y.huisin}→${y.yongsin}), 기신은 용신을 극하는 오행(${y.gisin}→${y.yongsin})입니다.`,
@@ -1167,106 +1178,236 @@
     };
   }
 
-  function readCompat(a, b) {
+  // 상대가 나에게 어떤 존재인지 (상대 일간이 내 일간에 대해 갖는 십성)
+  const PARTNER_ROLE = {
+    비견: '친구처럼 대등한 동반자예요. 편하지만 둘 다 양보를 어려워할 수 있어요.',
+    겁재: '자극을 주는 라이벌 같은 연인이에요. 함께 성장하지만 경쟁심은 조심해야 해요.',
+    식신: '함께 있으면 편하고 즐거운 사람이에요. 자꾸 챙겨 주고 싶은 상대예요.',
+    상관: '내 감정과 끼를 끌어내는 사람이에요. 재미있지만 말다툼은 조심해야 해요.',
+    편재: '설레고 활동적인 관계예요. 함께 새로운 경험을 쌓는 상대예요.',
+    정재: '안정감과 현실적인 미래를 주는 사람이에요. 결혼 상대로 믿음이 가요.',
+    편관: '강렬하게 끌리지만 긴장감이 있는 상대예요. 나를 단련시키는 사람이에요.',
+    정관: '나를 바르게 이끌어 주는 사람이에요. 존경과 신뢰가 바탕이 되는 관계예요.',
+    편인: '나를 깊이 이해해 주는 사람이에요. 정신적인 교감이 큰 관계예요.',
+    정인: '나를 보살펴 주는 포근한 사람이에요. 기대고 싶은 상대예요.',
+  };
+  const CONFLICT_STYLE = {
+    비겁: ['물러서지 않고 정면으로 부딪혀요. 자존심이 상하면 오래가요.', '자존심을 세워 주는 말 한마디'],
+    식상: ['할 말은 해야 풀려요. 다만 말이 날카로워지기 쉬워요.', '끝까지 들어 주는 것'],
+    재성: ['감정보다 해결책부터 찾으려 해요. 따지는 말투가 차갑게 들릴 수 있어요.', '구체적인 해결책을 함께 정하는 것'],
+    관성: ['참다가 한 번에 터져요. 옳고 그름으로 따지는 편이에요.', '잘못을 먼저 인정하고 사과하는 것'],
+    인성: ['말을 아끼고 혼자 생각해요. 침묵이 길어질 수 있어요.', '혼자 생각할 시간을 주고 기다려 주는 것'],
+  };
+  const MONEY_STYLE = (x) => {
+    const jeong = x.tenGodCount.정재, pyeon = x.tenGodCount.편재, g = x.strength.groups;
+    if (jeong + pyeon === 0 && g.재성 < 8) return ['가치형', '돈보다 의미와 경험을 중시하는 편'];
+    if (g.비겁 >= 35) return ['씀씀이형', '사람 챙기느라 지출이 큰 편'];
+    if (pyeon > jeong) return ['투자형', '돈을 굴리고 기회를 잡는 편'];
+    return ['저축형', '계획적으로 모으고 관리하는 편'];
+  };
+  const topGroupOf = (x) => GROUPS.slice().sort((p, q) => x.strength.groups[q] - x.strength.groups[p])[0];
+
+  // 두 사람의 앞으로 6년: 각자의 운 점수, 함께 좋은 해·조심할 해, 결혼·약속하기 좋은 해
+  function coupleTiming(a, b, Y) {
+    const rows = [];
+    for (let y = Y; y < Y + 6; y++) {
+      const per = [a, b].map(x => {
+        const se = E.getSeun(x, y, y)[0];
+        const r = yearScore(x, se, x.daeun ? E.currentDaeun(x, y) : null);
+        const star = groupElement(x, isMale(x) ? '재성' : '관성');
+        return { score: r.score, se, star, starIn: se.stemElement === star || se.branchElement === star, dayChung: r.events.some(e => e.includes('나 자신·배우자')) };
+      });
+      rows.push({ year: y, ganzhi: per[0].se.hanja, a: per[0], b: per[1] });
+    }
+    const both = rows.filter(r => r.a.score >= 55 && r.b.score >= 55);
+    const careful = rows.filter(r => (r.a.score <= 42 && r.b.score <= 50) || (r.b.score <= 42 && r.a.score <= 50) || (r.a.dayChung && r.b.dayChung));
+    const marry = rows.filter(r => (r.a.starIn || r.b.starIn) && r.a.score >= 45 && r.b.score >= 45 && !(r.a.dayChung && r.b.dayChung));
+    return { rows, both, careful, marry };
+  }
+
+  function readCompat(a, b, now = new Date()) {
     const na = a.name || 'A', nb = b.name || 'B';
     a = { ...a, name: na }; b = { ...b, name: nb };
+    const Y = now.getFullYear();
     const cats = [];
     const add = (key, title, weight, score, verdict, text, why) => cats.push({ key, title, weight, score: clamp(score), verdict, text, why });
+    const ax = personaAxes(a), bx = personaAxes(b);
+    const ga = topGroupOf(a), gb = topGroupOf(b);
 
     // 1. 성격(일간)
     const st = stemRelation(a, b);
-    add('stem', '성격 궁합', 25, st.score, st.verdict, st.text, [
+    const godAB = E.tenGod(a.dayMaster.stem, b.dayMaster.stem), godBA = E.tenGod(b.dayMaster.stem, a.dayMaster.stem);
+    add('stem', '성격 궁합', 20, st.score, st.verdict, st.text, [
       `두 사람의 [[일간]](나 자신을 뜻하는 글자): ${na} ${a.dayMaster.hanja}, ${nb} ${b.dayMaster.hanja}`,
-      `${na}에게 ${josa(nb, '은/는')} ${E.tenGod(a.dayMaster.stem, b.dayMaster.stem)}, ${nb}에게 ${josa(na, '은/는')} ${E.tenGod(b.dayMaster.stem, a.dayMaster.stem)}의 존재입니다.`,
+      `${na}에게 ${josa(nb, '은/는')} ${godAB}, ${nb}에게 ${josa(na, '은/는')} ${godBA}의 존재입니다.`,
       '일간끼리 합이면 끌림, 생(生)하면 돌봄, 같으면 동료, 극(剋)하면 리드-팔로우 관계로 봅니다.',
     ]);
 
     // 2. 배우자궁(일지)
     const dr = branchRelation(a.pillars.day.branch, b.pillars.day.branch);
-    add('day', '결혼 생활 궁합 (배우자궁)', 20, dr.score, dr.type === '무난' ? '무난한 생활 궁합' : `배우자궁 ${dr.type}`, dr.text, [
+    add('day', '결혼 생활', 18, dr.score, dr.type === '무난' ? '무난한 생활 궁합' : `배우자궁 ${dr.type}`, dr.text, [
       `[[배우자궁]]은 일주의 아래 글자로, 함께 사는 생활과 결혼 관계를 봅니다: ${na} ${E.BRANCHES_HANJA[a.pillars.day.branch]}, ${nb} ${E.BRANCHES_HANJA[b.pillars.day.branch]}`,
       dr.name ? `관계: ${dr.name}` : '두 글자 사이에 합·충 등 특별한 관계가 없습니다.',
     ]);
 
-    // 3. 띠(년지)
-    const yr = branchRelation(a.pillars.year.branch, b.pillars.year.branch);
-    add('year', '띠 궁합', 10, yr.score, `${a.animal}띠 × ${b.animal}띠`, yr.text, [
-      `띠는 태어난 해의 지지(년지)입니다: ${na} ${E.BRANCHES_HANJA[a.pillars.year.branch]}(${a.animal}), ${nb} ${E.BRANCHES_HANJA[b.pillars.year.branch]}(${b.animal})`,
-      dr.name || yr.name ? `관계: ${yr.name || '특별한 관계 없음'}` : null,
-      '띠 궁합은 집안·사회적 배경의 조화를 보는 보조 지표라 비중을 낮게 두었습니다.',
-    ].filter(Boolean));
+    // 3. 대화·소통 (식상 = 표현력, 외향 지표)
+    const ea = a.strength.groups.식상, eb = b.strength.groups.식상;
+    const talkA = ea >= 15 || ax[0].value >= 60, talkB = eb >= 15 || bx[0].value >= 60;
+    let comm, commText;
+    if (talkA && talkB) { comm = 68; commText = `두 사람 모두 표현이 풍부해 대화가 끊이지 않아요. 다만 둘 다 말로 이기려 들면 말다툼이 길어질 수 있어요. 한 사람이 말할 때 끝까지 들어 주는 규칙이 도움이 돼요.`; }
+    else if (talkA !== talkB) { const [t, l] = talkA ? [na, nb] : [nb, na]; comm = 82; commText = `${josa(t, '이/가')} 말을 꺼내고 ${josa(l, '이/가')} 들어 주는 조합이에요. 대화의 균형이 자연스럽게 맞아요. ${josa(l, '이/가')} 속마음을 쌓아 두지 않도록 ${josa(t, '이/가')} 먼저 물어봐 주세요.`; }
+    else { comm = 55; commText = `두 사람 모두 속마음을 잘 드러내지 않는 편이에요. 조용히 편안한 관계지만, 서운함을 말하지 않아 오해가 쌓일 수 있어요. 일주일에 한 번은 서로의 기분을 묻는 시간을 정해 두세요.`; }
+    if (a.dayMaster.yinyang !== b.dayMaster.yinyang) { comm += 5; commText += ` 일간의 음양이 달라(${a.dayMaster.yinyang}·${b.dayMaster.yinyang}) 한 사람은 드러내고 한 사람은 받아 주는 보완이 있어요.`; }
+    add('talk', '대화·소통', 10, comm, comm >= 75 ? '말과 귀가 잘 맞는 사이' : comm >= 60 ? '대화가 활발한 사이' : '표현 연습이 필요한 사이', commText, [
+      `표현의 기운(식상): ${na} ${ea}%, ${nb} ${eb}% · 외향 지표: ${na} ${ax[0].value}%, ${nb} ${bx[0].value}%`,
+      '식상은 말·표현·감정 표출을 뜻해 15% 이상이거나 외향 지표가 60% 이상이면 "표현형"으로 봤습니다.',
+    ]);
 
-    // 4. 오행 보완
+    // 4. 돈·가치관
+    const ma = MONEY_STYLE(a), mb = MONEY_STYLE(b);
+    const rel = ((GROUPS.indexOf(gb) - GROUPS.indexOf(ga)) % 5 + 5) % 5;
+    let val = rel === 0 ? 85 : rel === 1 || rel === 4 ? 74 : 55;
+    const qa = `"${GROUP_PERSONA[ga].value}"`, qb = `"${GROUP_PERSONA[gb].value}"`;
+    const valueText = rel === 0 ? `두 사람 모두 ${josa(qa, '을/를')} 가장 중요하게 여겨, 인생에서 바라는 것이 같아요.`
+      : rel === 1 || rel === 4 ? `${josa(na, '은/는')} ${qa}, ${josa(nb, '은/는')} ${josa(qb, '을/를')} 중시해요. 다르지만 서로를 북돋는 가치라 함께하면 시너지가 나요.`
+      : `${josa(na, '은/는')} ${qa}, ${josa(nb, '은/는')} ${josa(qb, '을/를')} 중시해요. 우선순위가 부딪히기 쉬워 큰 결정(직업, 집, 돈) 앞에서 의견이 갈릴 수 있어요.`;
+    let moneyText;
+    if (ma[0] === mb[0]) { val += 5; moneyText = `돈 관리 스타일도 둘 다 ${ma[0]}(${ma[1]})이라 돈 문제로 크게 부딪히지 않아요.`; }
+    else if ([ma[0], mb[0]].includes('저축형') && [ma[0], mb[0]].some(t => t === '투자형' || t === '씀씀이형')) { val -= 8; moneyText = `돈 관리는 ${na} ${ma[0]}(${ma[1]}), ${nb} ${mb[0]}(${mb[1]})이에요. 아끼는 사람과 쓰는 사람의 조합이라 생활비·저축 비율을 미리 정해 두지 않으면 다툼의 씨앗이 돼요.`; }
+    else moneyText = `돈 관리는 ${na} ${ma[0]}(${ma[1]}), ${nb} ${mb[0]}(${mb[1]})이에요. 서로의 방식을 존중하되 공동 통장 규칙을 정해 두면 좋아요.`;
+    add('money', '돈·가치관', 10, val, val >= 75 ? '바라는 삶이 비슷한 사이' : val >= 60 ? '서로를 북돋는 사이' : '우선순위 조율이 필요한 사이', `${valueText} ${moneyText}`, [
+      `가장 강한 십성 묶음(가치관의 뿌리): ${na} ${ga}, ${nb} ${gb}`,
+      `돈 스타일: 재성(정재=저축·관리, 편재=투자·활동)과 비겁(지출) 비중으로 판단했습니다.`,
+    ]);
+
+    // 5. 오행 보완
     let comp = 50;
     const compWhy = [], compText = [];
     for (const [x, y] of [[a, b], [b, a]]) {
       const yp = y.elements.percent;
-      if (yp[x.yongsin.yongsin] >= 20) { comp += 15; compText.push(`${josa(y.name, '은/는')} ${x.name}에게 필요한 ${elName(x.yongsin.yongsin)} 기운을 많이 가지고 있어, 함께 있으면 ${josa(x.name, '이/가')} 편안해집니다.`); }
-      if (yp[x.yongsin.gisin] >= 30) { comp -= 10; compText.push(`${josa(y.name, '은/는')} ${x.name}에게 부담이 되는 ${elName(x.yongsin.gisin)} 기운이 강해, 가끔 ${josa(x.name, '이/가')} 지칠 수 있습니다.`); }
-      for (const m of x.elements.missing) if (y.elements.count[m] >= 2) { comp += 7; compText.push(`${x.name}에게 없는 ${elName(m)} 기운을 ${josa(y.name, '이/가')} 채워 줍니다.`); }
+      if (yp[x.yongsin.yongsin] >= 20) { comp += 15; compText.push(`${josa(y.name, '은/는')} ${x.name}에게 필요한 ${elName(x.yongsin.yongsin)} 기운을 많이 가지고 있어, 함께 있으면 ${josa(x.name, '이/가')} 편안해져요.`); }
+      if (yp[x.yongsin.gisin] >= 30) { comp -= 10; compText.push(`${josa(y.name, '은/는')} ${x.name}에게 부담이 되는 ${elName(x.yongsin.gisin)} 기운이 강해, 가끔 ${josa(x.name, '이/가')} 지칠 수 있어요.`); }
+      for (const m of x.elements.missing) if (y.elements.count[m] >= 2) { comp += 7; compText.push(`${x.name}에게 없는 ${elName(m)} 기운을 ${josa(y.name, '이/가')} 채워 줘요.`); }
       compWhy.push(`${x.name}의 용신 ${x.yongsin.yongsin}·기신 ${x.yongsin.gisin} / ${y.name}의 오행: ${ELS.map(e => `${e} ${y.elements.percent[e]}%`).join(', ')}`);
     }
-    add('element', '오행 보완', 20, comp, comp >= 70 ? '서로의 빈자리를 채워 주는 사이' : comp >= 50 ? '무난한 오행 관계' : '기운이 한쪽으로 쏠리는 사이',
-      compText.join(' ') || '서로 크게 채워 주거나 부담을 주는 오행은 없습니다. 각자의 색을 유지하며 지내는 관계입니다.',
+    add('element', '오행 보완', 15, comp, comp >= 70 ? '서로의 빈자리를 채워 주는 사이' : comp >= 50 ? '무난한 오행 관계' : '기운이 한쪽으로 쏠리는 사이',
+      compText.join(' ') || '서로 크게 채워 주거나 부담을 주는 오행은 없어요. 각자의 색을 유지하며 지내는 관계예요.',
       ['내게 필요한 기운([[용신]])을 상대가 많이 가지고 있으면, 그 사람 곁에서 운이 좋아진다고 봅니다.', ...compWhy]);
 
-    // 5. 배우자 별
+    // 6. 배우자 별
     let ss = 50;
     const ssWhy = [], ssText = [];
     for (const [x, y] of [[a, b], [b, a]]) {
       const starGroup = isMale(x) ? '재성' : '관성';
       const starEl = groupElement(x, starGroup);
       ssWhy.push(`${x.name}(${isMale(x) ? '남' : '여'})의 배우자 별은 ${starGroup} = ${starEl} 기운, ${y.name}의 일간은 ${y.dayMaster.element}`);
-      if (y.dayMaster.element === starEl) { ss += 22; ssText.push(`${josa(y.name, '은/는')} ${x.name} 사주에서 배우자 별에 해당하는 ${elName(starEl)} 기운 그 자체입니다. 사주로 보면 "${x.name}의 짝"에 가까운 사람이에요.`); }
-      else if (y.elements.percent[starEl] >= 25) { ss += 10; ssText.push(`${josa(y.name, '이/가')} ${x.name}의 배우자 별 기운(${starEl})을 많이 가지고 있어 이성으로 끌리기 쉽습니다.`); }
+      if (y.dayMaster.element === starEl) { ss += 22; ssText.push(`${josa(y.name, '은/는')} ${x.name} 사주에서 배우자 별에 해당하는 ${elName(starEl)} 기운 그 자체예요. 사주로 보면 "${x.name}의 짝"에 가까운 사람이에요.`); }
+      else if (y.elements.percent[starEl] >= 25) { ss += 10; ssText.push(`${josa(y.name, '이/가')} ${x.name}의 배우자 별 기운(${starEl})을 많이 가지고 있어 이성으로 끌리기 쉬워요.`); }
     }
-    add('star', '배우자 별', 15, ss, ss >= 80 ? '사주가 말하는 짝' : ss >= 60 ? '이성으로 끌리는 기운' : '끌림보다는 정으로 쌓는 관계',
-      ssText.join(' ') || '두 사람 모두 상대의 배우자 별 기운이 두드러지진 않습니다. 첫눈에 반하기보다 함께 시간을 보내며 정이 깊어지는 관계예요.',
+    add('star', '배우자 별', 12, ss, ss >= 80 ? '사주가 말하는 짝' : ss >= 60 ? '이성으로 끌리는 기운' : '끌림보다는 정으로 쌓는 관계',
+      ssText.join(' ') || '두 사람 모두 상대의 배우자 별 기운이 두드러지진 않아요. 첫눈에 반하기보다 함께 시간을 보내며 정이 깊어지는 관계예요.',
       ['사주에서 남성은 재성(내가 다스리는 기운), 여성은 관성(나를 다스리는 기운)을 배우자의 별로 봅니다.', ...ssWhy]);
 
-    // 6. 생활 리듬 (성향 지표 비교)
-    const ax = personaAxes(a), bx = personaAxes(b);
+    // 7. 생활 리듬
     const diff = (i) => Math.abs(ax[i].value - bx[i].value);
     let rhythm = 85 - diff(2) * 0.6 - diff(1) * 0.2;
     const rhythmText = [];
-    if (diff(2) >= 30) rhythmText.push(`${josa(ax[2].value > bx[2].value ? na : nb, '은/는')} 계획형, ${josa(ax[2].value > bx[2].value ? nb : na, '은/는')} 즉흥형이라 여행·약속·돈 관리에서 부딪히기 쉽습니다. 큰 틀은 계획형이, 세부는 즉흥형이 맡으면 좋아요.`);
-    else rhythmText.push('계획과 즉흥의 리듬이 비슷해 일상을 함께 꾸리기 편합니다.');
+    if (diff(2) >= 30) rhythmText.push(`${josa(ax[2].value > bx[2].value ? na : nb, '은/는')} 계획형, ${josa(ax[2].value > bx[2].value ? nb : na, '은/는')} 즉흥형이라 여행·약속·집안일에서 부딪히기 쉬워요. 큰 틀은 계획형이, 세부는 즉흥형이 맡으면 좋아요.`);
+    else rhythmText.push('계획과 즉흥의 리듬이 비슷해 일상을 함께 꾸리기 편해요.');
     if (ax[3].value >= 60 && bx[3].value >= 60) { rhythm -= 12; rhythmText.push('두 사람 모두 주도적이라 결정권을 두고 다툴 수 있어요. 분야별로 맡을 사람을 정해 두세요.'); }
     else if (ax[3].value <= 40 && bx[3].value <= 40) { rhythm -= 5; rhythmText.push('두 사람 모두 맞춰 주는 성향이라 서로 양보하다 결정이 늦어질 수 있어요.'); }
-    else rhythmText.push('한 사람이 이끌고 한 사람이 맞추는 조합이라 역할 분담이 자연스럽습니다.');
-    if (diff(0) >= 35) rhythmText.push(`${josa(ax[0].value > bx[0].value ? na : nb, '은/는')} 밖에서, ${josa(ax[0].value > bx[0].value ? nb : na, '은/는')} 혼자 쉬면서 충전하는 타입입니다. 주말 보내는 방식을 미리 이야기해 두세요.`);
-    add('rhythm', '생활 리듬', 10, rhythm, rhythm >= 70 ? '일상이 잘 맞는 사이' : rhythm >= 50 ? '조율하면 맞는 사이' : '생활 방식 조율이 필요한 사이', rhythmText.join(' '),
+    else rhythmText.push('한 사람이 이끌고 한 사람이 맞추는 조합이라 역할 분담이 자연스러워요.');
+    if (diff(0) >= 35) rhythmText.push(`${josa(ax[0].value > bx[0].value ? na : nb, '은/는')} 밖에서, ${josa(ax[0].value > bx[0].value ? nb : na, '은/는')} 혼자 쉬면서 충전하는 타입이에요. 주말 보내는 방식을 미리 이야기해 두세요.`);
+    add('rhythm', '생활 리듬', 8, rhythm, rhythm >= 70 ? '일상이 잘 맞는 사이' : rhythm >= 50 ? '조율하면 맞는 사이' : '생활 방식 조율이 필요한 사이', rhythmText.join(' '),
       ax.map((x, i) => `${x.left}↔${x.right}: ${na} ${x.value}% / ${nb} ${bx[i].value}%`));
+
+    // 8. 띠·집안(년지·월지)
+    const yr = branchRelation(a.pillars.year.branch, b.pillars.year.branch);
+    const mr = branchRelation(a.pillars.month.branch, b.pillars.month.branch);
+    const fam = yr.score * 0.5 + mr.score * 0.5;
+    add('family', '띠·집안', 7, fam, `${a.animal}띠 × ${b.animal}띠`, `띠로 보면 ${yr.text} 성장 환경(월지)으로 보면 ${mr.text}`, [
+      `띠(년지): ${na} ${E.BRANCHES_HANJA[a.pillars.year.branch]}(${a.animal}), ${nb} ${E.BRANCHES_HANJA[b.pillars.year.branch]}(${b.animal})${yr.name ? ` — ${yr.name}` : ''}`,
+      `월지(부모·성장 환경): ${na} ${E.BRANCHES_HANJA[a.pillars.month.branch]}, ${nb} ${E.BRANCHES_HANJA[b.pillars.month.branch]}${mr.name ? ` — ${mr.name}` : ''}`,
+      '띠와 집안 궁합은 양가 분위기와 사회적 배경의 조화를 보는 보조 지표라 비중을 낮게 두었습니다.',
+    ]);
 
     const total = clamp(cats.reduce((sum, c) => sum + c.score * c.weight, 0) / cats.reduce((sum, c) => sum + c.weight, 0));
     const grade = total >= 80 ? '천생연분' : total >= 68 ? '잘 맞는 사이' : total >= 55 ? '노력하면 좋은 사이' : '서로 이해가 필요한 사이';
     const sorted = cats.slice().sort((x, y) => y.score - x.score);
     const good = sorted.filter(c => c.score >= 68).map(c => `${c.title}: ${c.verdict}`);
     const caution = sorted.filter(c => c.score < 55).reverse().map(c => `${c.title}: ${c.verdict}`);
+    const cat = Object.fromEntries(cats.map(c => [c.key, c]));
+    const timing = coupleTiming(a, b, Y);
+    const yearList = (rows) => rows.map(r => `${r.year}년(${r.ganzhi})`).join(', ');
+    const ca = CONFLICT_STYLE[ga], cb = CONFLICT_STYLE[gb];
+    const limits = [a, b].filter(x => !x.birth.hourKnown).map(x => x.name);
+
     const ADVICE = {
       stem: '서로의 기질 차이를 "틀림"이 아닌 "다름"으로 받아들이세요. 중요한 결정은 한 사람이 몰아가지 말고 함께 정하세요.',
-      day: '생활 습관(정리, 수면, 소비)에 대한 규칙을 미리 정해 두면 다툼이 크게 줄어듭니다.',
-      year: '양가 가족이나 주변 사람과의 관계에서 서로의 편이 되어 주세요.',
-      element: `서로에게 부족한 기운을 채우는 활동(함께 하는 ${ELEMENT_INFO[a.yongsin.yongsin].acts.split(', ')[0]} 등)을 늘려 보세요.`,
-      star: '설렘보다 정으로 깊어지는 관계입니다. 작은 이벤트와 표현으로 이성으로서의 긴장감을 지켜 주세요.',
-      rhythm: '주말·여행·돈 관리처럼 자주 부딪히는 주제는 미리 역할을 나눠 두세요.',
+      day: '생활 습관(정리, 수면, 소비)에 대한 규칙을 미리 정해 두면 다툼이 크게 줄어들어요.',
+      talk: '서운한 일은 그날 안에, 짧게, "나는 ~해서 서운했어"라고 말하는 연습을 해 보세요.',
+      money: '수입·저축·용돈 비율을 숫자로 정해 두세요. 돈 이야기를 정기적으로 하는 커플이 오래가요.',
+      element: '서로에게 부족한 기운을 채우는 활동을 함께 늘려 보세요.',
+      star: '설렘보다 정으로 깊어지는 관계예요. 작은 이벤트와 표현으로 이성으로서의 긴장감을 지켜 주세요.',
+      rhythm: '주말·여행·집안일처럼 자주 부딪히는 주제는 미리 역할을 나눠 두세요.',
+      family: '양가 가족 문제에서는 각자 자기 가족을 설득하는 역할을 맡으세요.',
     };
-    const weak = sorted.filter(c => c.score < 70).slice(-2).reverse();
-    const advice = weak.length ? weak.map(c => ADVICE[c.key]) : ['지금처럼 서로의 장점을 자주 말로 표현해 주세요. 잘 맞는 관계일수록 익숙함에 소홀해지기 쉽습니다.'];
+    const weak = sorted.filter(c => c.score < 70).slice(-3).reverse();
+    const advice = weak.length ? weak.map(c => `${c.title}: ${ADVICE[c.key]}`) : ['지금처럼 서로의 장점을 자주 말로 표현해 주세요. 잘 맞는 관계일수록 익숙함에 소홀해지기 쉬워요.'];
 
-    const summary = section('compat-main', `${na} ♥ ${nb}`, `${grade} (${total}점)`, [
-      `${josa(na, '은/는')} "${STEM_PERSONA[a.dayMaster.stem].nick}", ${josa(nb, '은/는')} "${STEM_PERSONA[b.dayMaster.stem].nick}" 같은 사람입니다.`,
-      good.length ? `잘 맞는 점 — ${good.join(' / ')}` : null,
-      caution.length ? `조심할 점 — ${caution.join(' / ')}` : null,
-      `관계를 위한 조언: ${advice.join(' ')}`,
-    ], [
-      `종합 점수는 6개 항목의 가중 평균입니다: ${cats.map(c => `${c.title} ${c.score}점×${c.weight}%`).join(', ')}`,
-      '점수는 사주로 본 경향일 뿐, 실제 관계는 두 사람의 대화와 노력이 훨씬 중요합니다.',
-    ]);
-    return {
-      score: total, grade, names: [na, nb], categories: cats, good, caution, advice,
-      sections: [summary, ...cats.map(c => section('compat-' + c.key, c.title, `${c.verdict} (${c.score}점)`, [c.text], c.why))],
-    };
+    const sections = [
+      section('compat-main', `${na} ♥ ${nb}`, `${grade} (${total}점)`, [
+        `${na}: "${STEM_PERSONA[a.dayMaster.stem].nick}" 같은 ${GROUP_PERSONA[ga].title}`,
+        `${nb}: "${STEM_PERSONA[b.dayMaster.stem].nick}" 같은 ${GROUP_PERSONA[gb].title}`,
+        good.length ? `잘 맞는 점: ${good.slice(0, 3).join(' / ')}` : null,
+        caution.length ? `조심할 점: ${caution.slice(0, 3).join(' / ')}` : null,
+        limits.length ? `분석의 한계: ${limits.join(', ')}님의 태어난 시간을 몰라 시주를 빼고 계산했어요. 오행 보완과 성향 비교의 정확도가 조금 낮아요.` : null,
+      ], [
+        `종합 점수는 8개 항목의 가중 평균입니다: ${cats.map(c => `${c.title} ${c.score}점×${c.weight}%`).join(', ')}`,
+        '점수는 사주로 본 경향일 뿐, 실제 관계는 두 사람의 대화와 노력이 훨씬 중요합니다.',
+      ]),
+      section('compat-who', '서로에게 어떤 존재일까', cat.stem.verdict, [
+        `${na}에게 ${nb}: ${godAB}. ${PARTNER_ROLE[godAB]}`,
+        `${nb}에게 ${na}: ${godBA}. ${PARTNER_ROLE[godBA]}`,
+        cat.stem.text,
+        cat.star.text,
+      ], [...cat.stem.why, ...cat.star.why]),
+      section('compat-love', '연애할 때', cat.talk.verdict, [
+        `${na}의 연애: ${STEM_PERSONA[a.dayMaster.stem].love}`,
+        `${nb}의 연애: ${STEM_PERSONA[b.dayMaster.stem].love}`,
+        `대화: ${cat.talk.text}`,
+        `애정 표현: ${Math.abs(ax[1].value - bx[1].value) >= 30
+          ? `${josa(ax[1].value > bx[1].value ? na : nb, '은/는')} 감정 표현을, ${josa(ax[1].value > bx[1].value ? nb : na, '은/는')} 행동과 책임으로 사랑을 보여 줘요. 표현 방식이 달라 "사랑받지 못한다"고 느끼지 않도록, 서로의 방식을 말로 알려 주세요.`
+          : '두 사람의 애정 표현 온도가 비슷해 서로의 마음을 오해할 일이 적어요.'}`,
+      ], [...cat.talk.why, `감성 지표: ${na} ${ax[1].value}%, ${nb} ${bx[1].value}%`]),
+      section('compat-life', '함께 살면', cat.day.verdict, [
+        `생활 궁합: ${cat.day.text}`,
+        `생활 리듬: ${cat.rhythm.text}`,
+        `돈과 가치관: ${cat.money.text}`,
+        `양가 가족: ${cat.family.text}`,
+      ], [...cat.day.why, ...cat.money.why, ...cat.family.why]),
+      section('compat-fight', '다툴 때', `${josa(na, '은/는')} ${ca[0].split('.')[0]}, ${josa(nb, '은/는')} ${cb[0].split('.')[0]}`, [
+        `${na}의 갈등 방식: ${ca[0]}`,
+        `${nb}의 갈등 방식: ${cb[0]}`,
+        `${josa(na, '과/와')} 화해하려면: ${josa(ca[1], '이/가')} 가장 효과적이에요.`,
+        `${josa(nb, '과/와')} 화해하려면: ${josa(cb[1], '이/가')} 가장 효과적이에요.`,
+        dr.type === '충' || st.score <= 45 ? '이 커플은 부딪히는 기운이 있어 다툼이 잦을 수 있어요. 대신 그만큼 서로를 강하게 의식한다는 뜻이기도 해요. "싸우지 않기"보다 "잘 싸우는 규칙"을 만드세요.' : null,
+      ], [`갈등 방식은 각자 가장 강한 십성 묶음(${na} ${ga}, ${nb} ${gb})의 스트레스 반응으로 봤습니다.`, `${na}의 스트레스 요인: ${GROUP_PERSONA[ga].stress} / ${nb}: ${GROUP_PERSONA[gb].stress}`]),
+      section('compat-fill', '서로를 채워 주는 점', cat.element.verdict, compText.length ? compText : [cat.element.text], cat.element.why),
+      section('compat-timing', '함께하는 시기', timing.marry.length ? `${timing.marry[0].year}년이 약속하기 좋은 해예요.` : timing.both.length ? `${timing.both[0].year}년에 함께 힘이 실려요.` : '앞으로 몇 년은 함께 다지는 시기예요.', [
+        timing.both.length ? `함께 좋은 해: ${yearList(timing.both)}. 두 사람 모두 운이 순한 해라 이사, 여행, 큰 계획을 함께 추진하기 좋아요.` : '함께 좋은 해: 앞으로 6년 안에 두 사람 모두 크게 좋은 해는 겹치지 않아요. 한 사람이 힘들 때 다른 사람이 받쳐 주는 구조예요.',
+        timing.careful.length ? `함께 조심할 해: ${yearList(timing.careful)}. 두 사람 모두 지치기 쉬운 해라 작은 일로 다툴 수 있어요. 큰 결정은 미루고 서로를 챙겨 주세요.` : '함께 조심할 해: 두 사람이 동시에 크게 흔들리는 해는 보이지 않아요.',
+        timing.marry.length ? `결혼·약속하기 좋은 해: ${yearList(timing.marry)}. 배우자 별의 기운이 들어오고 두 사람 운이 모두 무난한 해예요.` : '결혼·약속하기 좋은 해: 앞으로 6년 안에는 배우자 별이 뚜렷하게 들어오는 해가 없어요. 시기보다 두 사람의 준비가 더 중요해요.',
+      ], [
+        `해마다 각자의 운 점수(세운 60% + 대운 40%)를 따로 계산해 겹쳐 봤습니다: ${timing.rows.map(r => `${r.year} ${na} ${r.a.score}·${nb} ${r.b.score}`).join(' / ')}`,
+        '함께 좋은 해: 두 사람 모두 55점 이상. 함께 조심할 해: 한 사람이 42점 이하이고 다른 사람도 50점 이하이거나, 두 사람 모두 배우자궁이 충을 받는 해.',
+        '결혼하기 좋은 해: 둘 중 한 사람에게 배우자 별(남성 재성, 여성 관성)의 기운이 들어오고, 두 사람 모두 45점 이상인 해.',
+      ]),
+      section('compat-advice', '두 사람을 위한 조언', weak.length ? `${weak[0].title}에 신경 쓰면 훨씬 좋아져요.` : '지금처럼만 지내면 좋아요.', advice, [
+        '점수가 낮은 항목부터 조언을 골랐습니다.',
+      ]),
+    ];
+    return { score: total, grade, names: [na, nb], categories: cats, good, caution, advice, timing, sections };
   }
 
   // 두 상대 비교: 나(a)와 b1, b2
@@ -1290,7 +1431,158 @@
     };
   }
 
-  const api = { GLOSSARY, ELEMENT_INFO, STEM_INFO, TEN_GOD_INFO, GROUP_INFO, STAGE_INFO, SINSAL_INFO, RELATION_INFO, POSITION_INFO, SAENG, GEUK, readFullSaju, readPersona, readToday, readYear, readDaeun, readCompat, compareCompat, luckScore, josa };
+  // ============================================================
+  // 7. 인생 흐름: 지나온 시기와 앞으로의 시기
+  // ============================================================
+
+  // 시기의 성격(명사구). 과거·현재·미래 문장 끝은 tenseText가 붙인다
+  const HARD_THEME = {
+    비겁: '경쟁과 금전 손실, 가까운 사람과의 갈등',
+    식상: '말실수·구설, 진로 고민과 이직 충동',
+    재성: '돈 문제와 지출, 일에 쫓기는 과로',
+    관성: '직장·학업 압박, 시험·건강 스트레스',
+    인성: '의욕 저하와 생각 과다, 문서·계약·집 문제',
+  };
+  const GOOD_THEME = {
+    비겁: '자신감과 독립, 좋은 동료와의 성과',
+    식상: '재능 발휘와 새로운 시도의 성공',
+    재성: '수입 증가와 실속 있는 결과',
+    관성: '승진·합격·취업 같은 사회적 인정',
+    인성: '공부·자격 취득과 윗사람의 도움',
+  };
+  const tenseText = (theme, kind, tense) => {
+    const t = josa(theme, kind === 'hard' ? '으로/로' : '이/가');
+    if (kind === 'hard') return { past: `${t} 힘들었을 가능성이 높아요.`, now: `${t} 힘든 시기를 지나고 있어요.`, future: `${josa(theme, '을/를')} 조심해야 하는 시기예요.` }[tense];
+    return { past: `${t} 있었을 가능성이 높아요.`, now: `${josa(theme, '을/를')} 누리는 시기예요.`, future: `${josa(theme, '을/를')} 기대할 수 있는 시기예요.` }[tense];
+  };
+  const NATAL_WHO = { 일지: '나 자신·배우자·거처', 월지: '직장·부모·생활 환경', 년지: '집안·사회 환경', 시지: '자녀·계획' };
+  const roleOf = (s, e) => { const y = s.yongsin; return e === y.yongsin ? '용신' : e === y.huisin ? '희신' : e === y.gisin ? '기신' : e === y.gusin ? '구신' : '한신'; };
+
+  // 한 해의 점수와 근거: 세운 60% + 대운 40% + 충·삼재 보정
+  function yearScore(s, seun, dae) {
+    const ss = luckScore(s, seun).score;
+    const ds = dae ? luckScore(s, dae).score : 55;
+    let score = ss * 0.6 + ds * 0.4;
+    const factors = [
+      `${seun.year}년 ${seun.hanja}: 천간 ${seun.stemElement}(${roleOf(s, seun.stemElement)}), 지지 ${seun.branchElement}(${roleOf(s, seun.branchElement)})`,
+      dae ? `대운 ${dae.hanja}: 천간 ${dae.stemElement}(${roleOf(s, dae.stemElement)}), 지지 ${dae.branchElement}(${roleOf(s, dae.branchElement)})` : '첫 대운 전(어린 시절)',
+    ];
+    const events = [];
+    for (const r of seun.relations) {
+      const natal = r.members.find(m => NATAL_WHO[m]);
+      if (!natal) continue;
+      if (r.type === '충') { score -= natal === '일지' || natal === '월지' ? 5 : 2; events.push(`${r.name}: ${NATAL_WHO[natal]}에 변동`); }
+      else if (['형', '원진'].includes(r.type) && natal === '일지') { score -= 2; events.push(`${r.name}: ${NATAL_WHO[natal]} 쪽 마찰`); }
+      else if (['육합', '삼합'].includes(r.type) && (natal === '일지' || natal === '월지')) { score += 2; events.push(`${r.name}: ${NATAL_WHO[natal]}에 좋은 인연·화합`); }
+    }
+    if (dae && Math.abs(dae.branch - seun.branch) === 6) { score -= 4; events.push(`세운 ${E.BRANCHES_HANJA[seun.branch]}와 대운 ${E.BRANCHES_HANJA[dae.branch]}가 충: 큰 흐름과 그해 흐름이 부딪힘`); }
+    if (seun.samjae) { score -= seun.samjae === '눌삼재' ? 3 : 2; events.push(`삼재(${seun.samjae})`); }
+    return { score: Math.round(Math.max(10, Math.min(95, score))), factors, events };
+  }
+
+  function readLifeFlow(s, now = new Date()) {
+    const Y = now.getFullYear();
+    const birth = s.birth.solarDate.year;
+    const seuns = E.getSeun(s, birth, birth + 90);
+    const points = seuns.map(se => {
+      const dae = s.daeun ? E.currentDaeun(s, se.year) : null;
+      const r = yearScore(s, se, dae);
+      return { year: se.year, age: se.age, score: r.score, seun: se, dae, factors: r.factors, events: r.events };
+    });
+    const sorted = points.map(p => p.score).sort((a, b) => a - b);
+    const q = (f) => sorted[Math.floor((sorted.length - 1) * f)];
+    const hardCut = Math.min(50, q(0.2)), goodCut = Math.max(62, q(0.8));
+
+    // 연속된 해를 하나의 시기로 묶는다
+    const periods = (pred) => {
+      const out = [];
+      let cur = null;
+      for (const p of points) {
+        if (pred(p)) { if (cur) cur.items.push(p); else out.push(cur = { items: [p] }); }
+        else cur = null;
+      }
+      return out.map(pr => {
+        const it = pr.items, avg = Math.round(it.reduce((a, p) => a + p.score, 0) / it.length);
+        const key = pred === isHard ? it.reduce((a, p) => (p.score < a.score ? p : a)) : it.reduce((a, p) => (p.score > a.score ? p : a));
+        // 이 시기에 가장 많이 들어온 십성 묶음
+        const cnt = {};
+        for (const p of it) for (const g of [p.seun.stemTenGod, p.dae?.stemTenGod].filter(Boolean)) cnt[GOD_GROUP[g]] = (cnt[GOD_GROUP[g]] || 0) + 1;
+        const group = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0][0];
+        return { from: it[0].year, to: it[it.length - 1].year, ageFrom: it[0].age, ageTo: it[it.length - 1].age, avg, key, group };
+      });
+    };
+    const isHard = (p) => p.score <= hardCut;
+    const isGood = (p) => p.score >= goodCut;
+    const hard = periods(isHard), good = periods(isGood);
+    const label = (pr) => `${pr.from === pr.to ? pr.from + '년' : `${pr.from}~${pr.to}년`} · ${pr.ageFrom === pr.ageTo ? pr.ageFrom : `${pr.ageFrom}~${pr.ageTo}`}세${pr.from <= Y && pr.to >= Y ? ' (지금)' : ''}`;
+    const describe = (pr, kind, tense) => {
+      const theme = (kind === 'hard' ? HARD_THEME : GOOD_THEME)[pr.group];
+      const t = pr.from <= Y && pr.to >= Y ? 'now' : tense;
+      const ev = pr.key.events.length ? ` 겹치는 요인: ${[...new Set(pr.key.events)].slice(0, 2).join(', ')}.` : '';
+      return `${label(pr)}: ${tenseText(theme, kind, t)}${ev}`;
+    };
+    const whyOf = (pr) => `${label(pr)} — 평균 ${pr.avg}점. 가장 ${pr.avg <= hardCut ? '낮은' : '높은'} 해(${pr.key.year}년 ${pr.key.score}점): ${pr.key.factors.join(' / ')}`;
+
+    const pastHard = hard.filter(p => p.to < Y && p.ageTo >= 12).slice(-4);
+    const pastGood = good.filter(p => p.to < Y && p.ageTo >= 12).slice(-4);
+    const futHard = hard.filter(p => p.to >= Y).slice(0, 3);
+    const futGood = good.filter(p => p.to >= Y).slice(0, 3);
+    const cur = points.find(p => p.year === Y);
+
+    // 최근 12개월: 지난해·올해 월운 중 오늘 이전에 시작한 달
+    const months = [...E.getWolun(s, Y - 1), ...E.getWolun(s, Y)]
+      .filter(m => { const d = new Date(m.startDate.replace(' ', 'T') + ':00+09:00'); return d <= now && d > new Date(now.getTime() - 366 * 86400000); })
+      .map(m => {
+        const sc = luckScore(s, m);
+        const ev = [...new Set(relationNotes(m.relations, '').filter(n => /변동|마찰/.test(n)).map(n => n.split(':')[0]))];
+        return { ...m, score: sc.score, why: sc.why, ev };
+      });
+    const mSorted = months.slice().sort((a, b) => a.score - b.score);
+    const thisMonthStart = months.length ? months[months.length - 1].startDate : '';
+    const monthLabel = (m) => `${Number(m.startDate.slice(0, 4))}년 ${Number(m.startDate.slice(5, 7))}월 무렵${m.startDate === thisMonthStart ? ' (이번 달)' : ''}`;
+    const hardMonths = mSorted.slice(0, 3).sort((a, b) => a.startDate.localeCompare(b.startDate));
+    const goodMonths = mSorted.slice(-2).reverse().sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+    const none = (t) => [t];
+    const sections = [
+      section('life-now', '지금 나는 어디쯤?', cur ? `${Y}년은 ${cur.score}점 — ${cur.score >= goodCut ? '잘 풀리는 시기' : cur.score <= hardCut ? '조심할 시기' : '평탄한 시기'}입니다.` : '',
+        [
+          cur?.dae ? `지금 대운: ${cur.dae.age}세부터 ${cur.dae.hanja}(${cur.dae.text}) — 10년의 큰 흐름은 ${TEN_GOD_INFO[cur.dae.stemTenGod].short}입니다.` : null,
+          cur ? `올해 세운: ${cur.seun.hanja}(${cur.seun.text}) — ${TEN_GOD_INFO[cur.seun.stemTenGod].short}입니다.` : null,
+          `인생 평균: ${Math.round(sorted.reduce((a, b) => a + b, 0) / sorted.length)}점. 이보다 높으면 순풍, 낮으면 역풍인 해로 보세요.`,
+        ],
+        [
+          '[[인생그래프]]: 해마다 세운(1년 운) 60% + 대운(10년 운) 40%로 계산했습니다.',
+          '들어오는 기운이 나에게 필요한 기운(용신·희신)이면 점수가 오르고, 방해되는 기운(기신·구신)이면 내려갑니다.',
+          '그해 지지가 일지(나·배우자)나 월지(직장·환경)와 충하면 변동이 커서 감점, 삼재도 감점했습니다.',
+          `힘든 시기 기준: ${hardCut}점 이하 / 잘 풀리는 시기 기준: ${goodCut}점 이상 (평생 점수 중 하위·상위 20%)`,
+        ]),
+      section('life-past-hard', '지나온 시기 — 힘들었을 때', pastHard.length ? `${pastHard.map(p => p.from === p.to ? `${p.from}년` : `${p.from}~${p.to}년`).join(', ')}이 거친 시기였을 거예요.` : '지나온 시기에 크게 거친 해가 두드러지지 않습니다.',
+        pastHard.length ? pastHard.map(p => describe(p, 'hard', 'past')) : none('큰 역풍 없이 비교적 순탄하게 지나왔을 가능성이 높아요.'),
+        [...pastHard.map(whyOf), '맞았는지 떠올려 보세요. 사주는 일어난 사건보다 그 시기의 "기운의 결"을 보여 줍니다.']),
+      section('life-past-good', '지나온 시기 — 잘 풀렸을 때', pastGood.length ? `${pastGood.map(p => p.from === p.to ? `${p.from}년` : `${p.from}~${p.to}년`).join(', ')}에 순풍이 불었을 거예요.` : '지나온 시기에 크게 두드러진 상승기는 없었습니다.',
+        pastGood.length ? pastGood.map(p => describe(p, 'good', 'past')) : none('꾸준히 쌓아 온 시기로, 큰 상승은 앞으로 올 가능성이 큽니다.'),
+        pastGood.map(whyOf)),
+      section('life-months', '최근 12개월 돌아보기', hardMonths.length ? `${hardMonths.map(m => `${Number(m.startDate.slice(5, 7))}월`).join(', ')} 무렵이 특히 힘들었을 거예요.` : '최근 1년의 월별 흐름입니다.',
+        [
+          ...hardMonths.map(m => `${monthLabel(m)}: ${m.score}점. ${tenseText(HARD_THEME[GOD_GROUP[m.stemTenGod]], 'hard', m.startDate === thisMonthStart ? 'now' : 'past')}${m.ev.length ? ` 겹치는 요인: ${m.ev.join(', ')}.` : ''}`),
+          ...goodMonths.map(m => `좋았던 달 · ${monthLabel(m)}: ${m.score}점. ${tenseText(GOOD_THEME[GOD_GROUP[m.stemTenGod]], 'good', m.startDate === thisMonthStart ? 'now' : 'past')}`),
+        ],
+        [
+          '달은 양력 1일이 아니라 절기(입춘·경칩 …)부터 바뀝니다.',
+          ...hardMonths.map(m => `${monthLabel(m)}(${m.jie} 이후) ${m.hanja}: ${m.why.join(', ')}`),
+        ]),
+      section('life-future-hard', '앞으로 조심할 시기', futHard.length ? `${futHard.map(p => p.from === p.to ? `${p.from}년` : `${p.from}~${p.to}년`).join(', ')}에는 무리하지 마세요.` : '가까운 미래에 크게 거친 시기는 보이지 않습니다.',
+        futHard.length ? [...futHard.map(p => describe(p, 'hard', 'future')), '이 시기에는 큰 투자·확장보다 지키는 쪽을 택하고, 건강검진과 계약서 확인을 꼼꼼히 하세요.'] : none('준비한 일을 꾸준히 밀고 나가도 좋은 흐름입니다.'),
+        futHard.map(whyOf)),
+      section('life-future-good', '앞으로 잘 풀리는 시기', futGood.length ? `${futGood.map(p => p.from === p.to ? `${p.from}년` : `${p.from}~${p.to}년`).join(', ')}에 기회가 옵니다.` : '가까운 미래에는 큰 상승기보다 꾸준함이 필요한 흐름입니다.',
+        futGood.length ? [...futGood.map(p => describe(p, 'good', 'future')), '중요한 도전(이직, 창업, 결혼, 큰 계약)은 이 시기에 맞춰 준비하면 좋습니다.'] : none('작은 성과를 꾸준히 쌓으면 그다음 상승기에 크게 도약합니다.'),
+        futGood.map(whyOf)),
+    ];
+    return { points, current: Y, hardCut, goodCut, periods: { hard, good }, months, sections };
+  }
+
+  const api = { GLOSSARY, ELEMENT_INFO, STEM_INFO, TEN_GOD_INFO, GROUP_INFO, STAGE_INFO, SINSAL_INFO, RELATION_INFO, POSITION_INFO, SAENG, GEUK, readFullSaju, readPersona, readToday, readYear, readDaeun, readCompat, compareCompat, readLifeFlow, luckScore, josa };
   if (typeof module !== 'undefined') module.exports = api;
   else root.Interpret = api;
 })(typeof window !== 'undefined' ? window : globalThis);
