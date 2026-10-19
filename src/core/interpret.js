@@ -1582,7 +1582,7 @@
     return { points, current: Y, hardCut, goodCut, periods: { hard, good }, months, sections };
   }
 
-  const api = { GLOSSARY, ELEMENT_INFO, STEM_INFO, TEN_GOD_INFO, GROUP_INFO, STAGE_INFO, SINSAL_INFO, RELATION_INFO, POSITION_INFO, SAENG, GEUK, readFullSaju, readPersona, readToday, readYear, readDaeun, readCompat, compareCompat, readLifeFlow, luckScore, josa };
+  const api = { GLOSSARY, ELEMENT_INFO, STEM_INFO, TEN_GOD_INFO, GROUP_INFO, STAGE_INFO, SINSAL_INFO, RELATION_INFO, POSITION_INFO, SAENG, GEUK, readFullSaju, readPersona, readToday, readYear, readDaeun, readCompat, compareCompat, readLifeFlow, luckScore, yearScore, luckyItems, personaAxes, STEM_PERSONA, GROUP_PERSONA, fixJosa, josa };
   if (typeof module !== 'undefined') module.exports = api;
   else root.Interpret = api;
 })(typeof window !== 'undefined' ? window : globalThis);
