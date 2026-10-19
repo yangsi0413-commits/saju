@@ -396,51 +396,132 @@
     why: why.filter(Boolean).map(fixJosa),
   });
 
+  // ------------------------------------------------------------
+  // 개인화 도우미: 용어 설명 대신 그 사람의 실제 글자·자리·계절·구조로 말한다
+  // ------------------------------------------------------------
+  const POS_KEY = { 년: 'year', 월: 'month', 일: 'day', 시: 'hour' };
+  const placeText = (c) => `${c.label} ${c.hanja}(${c.god})`;
+  const posMeaning = (c) => DB.TEN_GOD_POSITION[c.god][DB.POS_INDEX[POS_KEY[c.label[0]]]];
+  const SEASON_OF = ['겨울', '겨울', '봄', '봄', '봄', '여름', '여름', '여름', '가을', '가을', '가을', '겨울'];
+
+  // 태어난 계절에서 일간 오행의 힘 (왕상휴수사)
+  const SEASON_STATE = {
+    왕: '제철을 만난 기운 — 타고난 힘이 가장 강한 계절에 태어나 자기 확신이 뚜렷합니다',
+    상: '계절이 나를 생해 주는 때 — 주변의 도움과 기운을 자연스럽게 받으며 자랍니다',
+    휴: '내가 계절에 힘을 내주는 때 — 재능과 표현으로 기운이 흘러 나가 쉽게 지칠 수 있습니다',
+    수: '내가 계절을 다스려야 하는 때 — 할 일과 욕심이 많아 힘이 여러 곳으로 나뉘기 쉽습니다',
+    사: '계절이 나를 누르는 때 — 환경의 압박 속에서 단련되며 늦게 빛을 보는 사주입니다',
+  };
+  const seasonState = (s) => ['왕', '휴', '수', '사', '상'][(elIdx(s.pillars.month.branchElement) - elIdx(s.dayMaster.element) + 5) % 5];
+
+  // 명리의 대표 구조 패턴
+  const STRUCTURES = {
+    식상생재: ['wealth', '재능(식상)이 재물(재성)로 이어지는 흐름 — 기술·콘텐츠·서비스처럼 실력을 팔아 돈을 버는 구조'],
+    관인상생: ['career', '직장·명예(정관)가 학문·자격(인성)을 거쳐 나를 돕는 흐름 — 조직에서 신뢰를 쌓아 올라가는 정통 엘리트 구조'],
+    살인상생: ['career', '거센 압박(편관)을 학문·인내(인성)로 바꾸는 흐름 — 위기에 강하고 고난 끝에 권위를 얻는 구조'],
+    식신제살: ['career', '재능(식신)으로 거친 압박(편관)을 다스리는 흐름 — 전문 기술로 어려운 일을 해결하는 해결사 구조'],
+    상관견관: ['career', '날카로운 표현(상관)이 질서(정관)와 부딪히는 구조 — 윗사람·규칙과 마찰이 잦아 말조심이 필요'],
+    상관패인: ['career', '거침없는 재능(상관)을 학문(인성)이 다듬는 구조 — 창의성에 깊이가 더해져 전문가로 인정받음'],
+    재생관: ['wealth', '재물(재성)이 명예·지위(관성)를 키우는 흐름 — 돈과 사회적 위치가 함께 올라가는 구조'],
+    재극인: ['wealth', '현실(재성)이 생각·학문(인성)을 누르는 구조 — 실리를 좇다 공부·문서를 소홀히 하기 쉬움'],
+    군겁쟁재: ['wealth', '나와 같은 기운(비겁)이 재물을 나눠 갖는 구조 — 동업·보증·돈거래에서 손해 보기 쉬움'],
+    재다신약: ['wealth', '재물(재성)은 많은데 감당할 힘이 약한 구조 — 기회는 많지만 무리하면 지치고 돈이 새기 쉬움'],
+    효신탈식: ['personality', '독특한 생각(편인)이 재능(식신)을 막는 구조 — 아이디어는 많은데 실행이 막히기 쉬움'],
+    비겁무관: ['career', '자기 힘은 강한데 다스리는 기운(관성)이 없는 구조 — 조직보다 자기 사업·프리랜서에 맞음'],
+    인성과다: ['personality', '도움·생각의 기운(인성)이 지나친 구조 — 생각이 많고 의존하기 쉬워 실행력이 관건'],
+  };
+  // 구조는 관련 십성이 천간에 드러나고(투출) 비중이 충분할 때만 성립한다고 본다
+  function structures(s) {
+    const g = s.strength.groups, c = s.tenGodCount, strong = s.strength.strong;
+    const cs = chars(s);
+    const at = (gods) => cs.filter(x => gods.includes(x.god));
+    const shown = (gods) => at(gods).some(x => x.label.endsWith('간'));
+    const out = [];
+    const add = (id, ok, a, b) => {
+      if (!ok) return;
+      const where = [at(a), at(b)].map(l => l.slice(0, 2).map(x => `${x.label} ${x.hanja}`).join('·')).filter(Boolean).join(' → ');
+      out.push({ id, area: STRUCTURES[id][0], text: `${STRUCTURES[id][1]}${where ? ` (${where})` : ''}` });
+    };
+    const SIK = ['식신', '상관'], JAE = ['편재', '정재'], GWAN = ['편관', '정관'], IN = ['편인', '정인'], BI = ['비견', '겁재'];
+    add('식상생재', g.식상 >= 12 && g.재성 >= 12 && (shown(SIK) || shown(JAE)) && strong, SIK, JAE);
+    add('관인상생', c.정관 >= 1 && c.정관 >= c.편관 && g.인성 >= 12 && shown(['정관']) && shown(IN), ['정관'], IN);
+    add('살인상생', c.편관 >= 1 && c.편관 > c.정관 && g.인성 >= 12 && shown(['편관']) && !strong, ['편관'], IN);
+    add('식신제살', c.식신 >= 1 && g.관성 >= 15 && shown(['식신']) && at(['편관']).length > 0, ['식신'], ['편관']);
+    add('상관견관', shown(['상관']) && shown(['정관']), ['상관'], ['정관']);
+    add('상관패인', shown(['상관']) && c.정관 === 0 && g.인성 >= 15 && !strong, ['상관'], IN);
+    add('재생관', g.재성 >= 15 && g.관성 >= 15 && shown(JAE) && shown(GWAN), JAE, GWAN);
+    add('재극인', g.재성 >= 25 && g.인성 >= 15 && shown(JAE), JAE, IN);
+    add('군겁쟁재', g.비겁 >= 35 && g.재성 >= 5, BI, JAE);
+    add('재다신약', g.재성 >= 30 && !strong, JAE, []);
+    add('효신탈식', c.편인 >= 2 && shown(['편인']) && c.식신 >= 1, ['편인'], ['식신']);
+    add('비겁무관', g.비겁 >= 35 && g.관성 < 5, BI, []);
+    add('인성과다', g.인성 >= 40, IN, []);
+    return out;
+  }
+
+  // 앞으로 그 오행이 들어오는 해
+  // 앞으로 12년 중 그 오행이 들어오는 해를, 그 사람의 운 점수(대운·원국과의 합충 포함)로 골라 나이와 함께
+  function nextYearsWith(s, el, n = 3, best = true) {
+    const Y = new Date().getFullYear(), list = [];
+    for (let y = Y; y < Y + 12; y++) {
+      const se = E.getSeun(s, y, y)[0];
+      if (se.stemElement !== el && se.branchElement !== el) continue;
+      list.push({ y, se, sc: yearScore(s, se, s.daeun ? E.currentDaeun(s, y) : null).score });
+    }
+    return list.sort((a, b) => (best ? b.sc - a.sc : a.sc - b.sc)).slice(0, n).sort((a, b) => a.y - b.y)
+      .map(x => `${x.y}년 ${x.se.hanja}(${x.se.age}세, ${x.sc}점)`);
+  }
+
   // ============================================================
   // 3. 원국 풀이
   // ============================================================
 
   function explainChart(s) {
     const p = s.pillars, b = s.birth;
-    const why = [];
+    const why = [
+      '[[사주팔자]]는 태어난 연·월·일·시를 각각 두 글자(위: [[천간]], 아래: [[지지]])로 바꾼 것입니다.',
+    ];
     const gregIdx = ((b.solarDate.year - 4) % 60 + 60) % 60;
     const beforeIpchun = gregIdx !== p.year.idx;
-    why.push(`년주 ${p.year.hanja}(${p.year.text}): 사주의 한 해는 1월 1일이 아니라 [[입춘]](2월 4일 무렵)에 시작합니다. ${beforeIpchun
+    why.push(`년주 ${p.year.hanja}(${p.year.text}): 사주의 한 해는 [[입춘]](2월 4일 무렵)에 시작합니다. ${beforeIpchun
       ? `${b.solarDate.year}년 입춘 전에 태어나 전년도인 ${p.year.text}년(${s.animal}띠)으로 봅니다.`
       : `${p.year.text}년(${s.animal}띠)에 해당합니다.`}`);
-    why.push(`월주 ${p.month.hanja}(${p.month.text}): 달은 [[절기]]로 나눕니다. ${s.jieqi.prev.name}(${s.jieqi.prev.date}) 이후, ${s.jieqi.next.name}(${s.jieqi.next.date}) 전에 태어나 ${E.BRANCHES[p.month.branch]}월입니다. 달의 천간은 연도 천간에 따라 정해집니다.`);
+    why.push(`월주 ${p.month.hanja}(${p.month.text}): 달은 [[절기]]로 나눕니다. ${s.jieqi.prev.name}(${s.jieqi.prev.date}) 이후, ${s.jieqi.next.name}(${s.jieqi.next.date}) 전에 태어나 ${E.BRANCHES[p.month.branch]}월입니다.`);
     why.push(`일주 ${p.day.hanja}(${p.day.text}): 60갑자가 하루에 하나씩 돌아가며, 이 날은 ${p.day.text}일입니다.`);
     if (b.hourKnown) {
       let t = `시주 ${p.hour.hanja}(${p.hour.text}): 하루를 2시간씩 12개 [[시진]]으로 나눕니다. `;
       if (b.timeMode === 'solar') t += `입력한 ${b.clock.slice(11)}을 출생지 경도(${b.longitude}°)에 맞춰 [[진태양시]] ${b.corrected.slice(11)}(으)로 보정했고(${b.correctionMin}분${b.dst ? ', [[서머타임]] 1시간 포함' : ''}), `;
       else if (b.timeMode === 'standard' && b.dst) t += `[[서머타임]] 기간이라 1시간을 빼 ${b.corrected.slice(11)}(으)로 계산했고, `;
-      t += `${E.BRANCHES[p.hour.branch]}시(${HOUR_RANGES[p.hour.branch]})에 해당합니다. 시의 천간은 일간에 따라 정해집니다.`;
+      t += `${E.BRANCHES[p.hour.branch]}시(${HOUR_RANGES[p.hour.branch]})에 해당합니다.`;
       why.push(t);
     }
+    const line = (k, label, idx) => {
+      const x = p[k], gw = DB.GUNGWI[k];
+      return `${label} ${x.hanja} · ${gw.period}: ${k === 'day' ? '나 자신' : `천간 ${x.stemTenGod}`}, 지지 ${x.branchTenGod} — ${DB.TEN_GOD_POSITION[x.branchTenGod][idx]}`;
+    };
     return section('chart', '사주팔자는 이렇게 정해졌어요',
       `${s.name ? s.name + '님의 ' : ''}여덟 글자는 ${['year', 'month', 'day', 'hour'].filter(k => p[k]).map(k => p[k].hanja).join(' ')} 입니다.`,
       [
-        '[[사주팔자]]는 태어난 연·월·일·시를 각각 두 글자로 바꾼 것입니다. 위 글자는 하늘의 기운인 [[천간]], 아래 글자는 땅의 기운인 [[지지]]입니다.',
-        '네 기둥은 인생의 시기와 사람을 함께 나타냅니다. ' + Object.values(POSITION_INFO).join(' / ') + '.',
-        b.hourKnown ? null : '태어난 시간을 몰라 시주를 비워 두고 여섯 글자로 풀이했습니다. 시주가 없으면 자녀운·말년운과 일부 분석의 정확도가 떨어집니다.',
-      ],
-      why);
+        line('year', '년주', 0), line('month', '월주', 1), line('day', '일주', 2),
+        b.hourKnown ? line('hour', '시주', 3) : '시주: 태어난 시간을 몰라 비워 두고 여섯 글자로 풀이했어요. 자녀운·말년운과 일부 분석의 정확도가 떨어집니다.',
+      ], why);
   }
 
   function readDayMaster(s) {
-    const d = s.dayMaster, info = STEM_INFO[d.stem];
+    const d = s.dayMaster, info = STEM_INFO[d.stem], st = seasonState(s);
+    const season = SEASON_OF[s.pillars.month.branch];
     return section('daymaster', '나를 나타내는 글자, 일간',
-      `${josa(`${d.text}${d.element}(${d.hanja}${ELEMENT_INFO[d.element].hanja})`, '은/는')} ${info.image}입니다.`,
+      `${season}에 태어난 ${josa(`${d.text}${d.element}(${d.hanja}${ELEMENT_INFO[d.element].hanja})`, '은/는')} ${info.image}입니다.`,
       [
-        `[[일간]]은 태어난 날의 위 글자로, 사주에서 "나 자신"을 뜻합니다. 나머지 일곱 글자는 모두 이 일간과의 관계로 풀이합니다.`,
         info.personality,
+        `${season}의 ${STEM_INFO[d.stem].image.split(' ').slice(-1)[0]} — 계절의 힘 ${st}(${'旺相休囚死'['왕상휴수사'.indexOf(st)]}): ${SEASON_STATE[st]}.`,
         `강점: ${info.strength}. 주의할 점: ${info.weakness}.`,
         info.advice,
       ],
       [
-        `태어난 날의 기둥(일주)이 ${s.pillars.day.hanja}이므로 위 글자 ${josa(d.hanja, '이/가')} 일간입니다.`,
-        `${josa(d.hanja + '(' + d.text + ')', '은/는')} ${d.yinyang}의 ${elName(d.element)} 기운입니다. ${ELEMENT_INFO[d.element].trait}`,
-        `천간은 같은 오행이라도 음양에 따라 성격이 다릅니다. 양(갑·병·무·경·임)은 크고 드러나는 모습, 음(을·정·기·신·계)은 작고 섬세한 모습으로 봅니다.`,
+        `[[일간]]은 태어난 날의 위 글자로, 사주에서 "나 자신"을 뜻합니다. 태어난 날의 기둥(일주)이 ${s.pillars.day.hanja}이므로 ${josa(d.hanja, '이/가')} 일간입니다.`,
+        `${josa(`${d.hanja}(${d.text})`, '은/는')} ${d.yinyang}의 ${elName(d.element)} 기운입니다. ${ELEMENT_INFO[d.element].trait}`,
+        `계절의 힘(왕상휴수사): 태어난 달 ${E.BRANCHES_HANJA[s.pillars.month.branch]}의 오행(${s.pillars.month.branchElement})과 일간 오행(${d.element})의 관계로 정합니다. 같으면 왕, 계절이 생해 주면 상, 내가 생해 주면 휴, 내가 극하면 수, 계절이 극하면 사.`,
       ]);
   }
 
@@ -465,168 +546,178 @@
   function readElements(s) {
     const { count, percent, missing, excess } = s.elements;
     const sorted = ELS.slice().sort((a, b) => percent[b] - percent[a]);
-    const top = sorted[0];
+    const [top, second] = sorted;
     const weak = ELS.filter(e => !missing.includes(e) && percent[e] < 8);
+    const r = (elIdx(second) - elIdx(top) + 5) % 5;
+    const mid = ELS[(elIdx(top) + 1) % 5];
+    const flow = r === 1 ? `${elName(top)}이 ${josa(elName(second), '을/를')} 생해 주는 흐름(${top}생${second}) — 강한 기운이 다음 기운으로 자연스럽게 흘러, 가진 힘을 쓸 곳이 분명한 구조입니다.`
+      : r === 4 ? `${elName(second)}이 ${josa(elName(top), '을/를')} 받쳐 주는 흐름(${second}생${top}) — 가장 강한 기운에 뒷심까지 더해져 한 방향으로 힘이 쏠리는 구조입니다.`
+      : r === 2 ? `${elName(top)}과 ${elName(second)}이 맞서는 구조(${top}극${second}) — 두 가지 욕구가 부딪혀 마음속 갈등이 생기기 쉽고, 둘을 잇는 ${elName(ELS[(elIdx(top) + 1) % 5])} 기운이 다리 역할을 합니다.`
+      : `${elName(second)}이 ${josa(elName(top), '을/를')} 누르는 구조(${second}극${top}) — 가장 강한 힘이 견제를 받아 긴장 속에서 균형을 잡는 구조입니다.`;
+    // 상생 사슬: 10% 이상인 오행이 생(生)으로 몇 개 이어지는가
+    let chain = 1;
+    for (let k = 1; k < 5; k++) { if (percent[ELS[(elIdx(top) + k) % 5]] >= 10) chain++; else break; }
     const paragraphs = [
-      `[[오행]]은 목(나무)·화(불)·토(흙)·금(쇠)·수(물) 다섯 기운입니다. 서로 돕는 [[상생]] — ${SAENG.join(', ')} — 과 서로 누르는 [[상극]] — ${GEUK.join(', ')} — 관계로 균형을 이룹니다.`,
-      `가장 강한 기운은 ${elName(top)}입니다. ${ELEMENT_INFO[top].trait}`,
-    ];
-    for (const e of excess) paragraphs.push(ELEMENT_INFO[e].many);
-    for (const e of missing) paragraphs.push(ELEMENT_INFO[e].none);
-    if (!missing.length && !excess.length) paragraphs.push('다섯 기운이 모두 있고 지나치게 몰린 것도 없어 비교적 고르게 갖춘 사주입니다.');
-    if (weak.length) paragraphs.push(`${weak.map(elName).join(', ')} 기운은 있지만 약한 편입니다.`);
-
-    const why = [
-      '글자별 오행: ' + [...chars(s), { label: '일간', hanja: s.dayMaster.hanja, element: s.dayMaster.element }]
-        .map(c => `${c.label} ${c.hanja}=${c.element}`).join(', '),
-      `개수는 여덟 글자를 그대로 센 것이고, 비율은 계절의 힘을 반영해 태어난 달(월지)에 30%, 일지·시지에 15%씩 더 무게를 두고, 지지 속에 숨은 천간([[지장간]])까지 나눠 계산했습니다.`,
-      excess.length ? `3개 이상인 오행(${excess.join(', ')})을 "많다", 0개인 오행(${missing.join(', ') || '없음'})을 "없다"로 봅니다.` : null,
+      `가장 강한 기운 ${elName(top)} ${percent[top]}%: ${ELEMENT_INFO[top].trait}`,
+      `두 번째 ${elName(second)} ${percent[second]}%: ${flow}`,
+      chain >= 3 ? `${top}에서 시작해 ${chain}개 오행이 생(生)으로 이어집니다 — 기운이 막힘없이 순환해 회복력이 좋은 사주입니다.` : percent[mid] < 8 ? `${josa(elName(top), '이/가')} 낳아 줄 ${elName(mid)} 기운이 약해, 강한 힘이 갈 곳을 찾지 못해 답답할 때가 있습니다.` : null,
+      ...excess.map(e => `${e} 과다 — 나에게는 ${GROUPS[(elIdx(e) - elIdx(dayEl(s)) + 5) % 5]}(${GROUP_INFO[GROUPS[(elIdx(e) - elIdx(dayEl(s)) + 5) % 5]].plain.split(' — ')[1]}): ${ELEMENT_INFO[e].many}`),
+      ...missing.map(e => `${e} 없음 — 나에게는 ${GROUPS[(elIdx(e) - elIdx(dayEl(s)) + 5) % 5]}의 자리가 빔: ${ELEMENT_INFO[e].none}`),
+      weak.length ? `${weak.map(elName).join(', ')} 기운은 있지만 약한 편입니다.` : null,
     ];
     return section('elements', '오행 — 다섯 기운의 균형',
-      missing.length ? `${missing.map(elName).join(', ')} 기운이 없고, ${elName(top)} 기운이 가장 강합니다.` : `${elName(top)} 기운이 가장 강한 사주입니다.`,
-      paragraphs, why);
+      missing.length ? `${elName(top)}·${elName(second)}이 강하고 ${josa(missing.map(elName).join('·'), '이/가')} 없는 사주입니다.` : `${elName(top)}·${elName(second)}이 강하고 다섯 기운을 모두 갖춘 사주입니다.`,
+      paragraphs, [
+        `[[오행]]은 목·화·토·금·수 다섯 기운이며, 서로 돕는 [[상생]](${SAENG.join(', ')})과 누르는 [[상극]](${GEUK.join(', ')}) 관계로 균형을 이룹니다.`,
+        '글자별 오행: ' + [...chars(s), { label: '일간', hanja: s.dayMaster.hanja, element: s.dayMaster.element }].map(c => `${c.label} ${c.hanja}=${c.element}`).join(', '),
+        '비율은 태어난 달(월지)에 30%, 일지·시지에 15%씩 더 무게를 두고, 지지 속 천간([[지장간]])까지 나눠 계산했습니다. 3개 이상이면 "많다", 0개면 "없다"로 봅니다.',
+      ]);
   }
 
   function readTenGods(s) {
     const g = s.strength.groups;
-    const sortedGroups = GROUPS.slice().sort((a, b) => g[b] - g[a]);
-    const top = sortedGroups[0];
+    const top = GROUPS.slice().sort((a, b) => g[b] - g[a])[0];
     const absent = GROUPS.filter(x => groupCount(s, x) === 0);
-    const paragraphs = [
-      `[[십성]]은 일간(나)을 기준으로 다른 글자가 나에게 어떤 존재인지를 나타냅니다. 나와 같으면 [[비겁]], 내가 생해 주면 [[식상]], 내가 다스리면 [[재성]], 나를 다스리면 [[관성]], 나를 생해 주면 [[인성]]입니다.`,
-      `${josa(top, '이/가')} 가장 강합니다(${GROUP_INFO[top].plain}). ${GROUP_INFO[top].many}`,
-    ];
-    for (const x of absent) paragraphs.push(`${josa(x, '이/가')} 없습니다. ${GROUP_INFO[x].none}`);
+    const st = structures(s);
     const yk = DB.YUKCHIN[isMale(s) ? 'M' : 'F'];
-    const posKey = { 년: 'year', 월: 'month', 일: 'day', 시: 'hour' };
-    for (const c of chars(s)) paragraphs.push(`${c.label} ${c.hanja} ${c.god}(${yk[c.god]}): ${DB.TEN_GOD_POSITION[c.god][DB.POS_INDEX[posKey[c.label[0]]]]}`);
-    const why = chars(s).map(c => {
-      const info = TEN_GOD_INFO[c.god];
-      return `${c.label} ${c.hanja}(${c.yinyang}${c.element}) → ${c.god}: ${info.how}`;
-    });
-    why.unshift(`일간 ${s.dayMaster.hanja}은 ${s.dayMaster.yinyang}${s.dayMaster.element}입니다. 지지는 속에 숨은 대표 천간(정기)으로 판단합니다.`);
-    why.push(`십성별 비중: ${GROUPS.map(x => `${x} ${g[x]}%`).join(', ')}`);
+    const paragraphs = [
+      `${josa(top, '이/가')} 가장 강합니다(${g[top]}%). ${GROUP_INFO[top].many}`,
+      ...st.map(x => `${x.id}: ${x.text}`),
+      ...absent.map(x => `${josa(x, '이/가')} 없음: ${GROUP_INFO[x].none}`),
+      ...chars(s).map(c => `${placeText(c)} · ${yk[c.god]}: ${posMeaning(c)}`),
+    ];
     return section('tengods', '십성 — 나를 둘러싼 관계',
-      `${top} 기운이 가장 두드러집니다.`, paragraphs, why);
+      st.length ? `${top} 기운이 가장 강하고, ${st.slice(0, 2).map(x => x.id).join('·')} 구조가 보입니다.` : `${top} 기운이 가장 두드러집니다.`,
+      paragraphs, [
+        '[[십성]]은 일간(나)을 기준으로 다른 글자가 나에게 어떤 존재인지를 나타냅니다. 나와 같으면 [[비겁]], 내가 생해 주면 [[식상]], 내가 다스리면 [[재성]], 나를 다스리면 [[관성]], 나를 생해 주면 [[인성]]입니다.',
+        `일간 ${josa(s.dayMaster.hanja, '은/는')} ${s.dayMaster.yinyang}${s.dayMaster.element}입니다. 지지는 속에 숨은 대표 천간(정기)으로 판단합니다.`,
+        ...chars(s).map(c => `${c.label} ${c.hanja}(${c.yinyang}${c.element}) → ${c.god}: ${TEN_GOD_INFO[c.god].how}`),
+        `십성별 비중: ${GROUPS.map(x => `${x} ${g[x]}%`).join(', ')}`,
+        st.length ? `구조 판별 기준(사주명리 구조 패턴): ${st.map(x => x.id).join(', ')}` : '두드러진 구조 패턴(식상생재·관인상생·살인상생 등)은 없습니다.',
+      ]);
   }
 
   function readStrength(s) {
-    const st = s.strength, p = s.pillars;
+    const st = s.strength, p = s.pillars, ss = seasonState(s);
     const ox = (v) => (v ? '얻음' : '못 얻음');
+    const sup = chars(s).filter(c => ['비겁', '인성'].includes(GOD_GROUP[c.god]));
+    const opp = chars(s).filter(c => !['비겁', '인성'].includes(GOD_GROUP[c.god]));
     return section('strength', '신강·신약 — 나의 힘은 얼마나 센가',
-      `${st.level}한 사주입니다.`,
+      `${st.level}한 사주입니다 (${st.score}점, 계절의 힘 '${ss}').`,
       [
-        `[[신강신약]]은 사주 안에서 나(일간)의 힘이 강한지 약한지를 봅니다. 좋고 나쁨이 아니라 성향과 필요한 기운이 달라지는 것입니다.`,
         STRENGTH_INFO[st.level],
+        sup.length ? `나를 받쳐 주는 글자: ${sup.map(placeText).join(', ')}` : '나를 받쳐 주는 글자가 없어, 사람과 환경의 도움이 특히 중요합니다.',
+        opp.length ? `나의 힘을 쓰게 하는 글자: ${opp.map(placeText).join(', ')}` : '힘을 쓸 곳(식상·재성·관성)이 없어, 넘치는 힘을 밖으로 풀 통로를 만드는 것이 중요합니다.',
+        `태어난 달 ${E.BRANCHES_HANJA[p.month.branch]}: ${st.deukryeong ? '나를 돕는 계절에 태어나 뿌리가 단단합니다.' : '나를 돕지 않는 계절에 태어나, 계절의 힘보다 주변 글자의 도움으로 버팁니다.'}`,
       ],
       [
+        '[[신강신약]]은 사주 안에서 나(일간)의 힘이 강한지 약한지를 봅니다. 좋고 나쁨이 아니라 성향과 필요한 기운이 달라지는 것입니다.',
         `나를 돕는 기운 = 비겁 ${st.groups.비겁}% + 인성 ${st.groups.인성}% = ${st.score}점. 50점 이상이면 신강, 미만이면 신약으로 봅니다.`,
-        `[[득령]] ${ox(st.deukryeong)}: 태어난 달 ${E.BRANCHES_HANJA[p.month.branch]}(${p.month.branchTenGod})이 나를 ${st.deukryeong ? '돕는' : '돕지 않는'} 기운입니다. 월지는 비중이 가장 커서(30%) 가장 중요합니다.`,
-        `[[득지]] ${ox(st.deukji)}: 내가 앉은 자리 ${E.BRANCHES_HANJA[p.day.branch]}(${p.day.branchTenGod})이 나를 ${st.deukji ? '돕습니다' : '돕지 않습니다'}.`,
-        `[[득세]] ${ox(st.deukse)}: 나머지 글자 중 나를 돕는 글자가 ${st.deukse ? '절반 이상' : '절반 미만'}입니다.`,
+        `[[득령]] ${ox(st.deukryeong)}: 월지 ${E.BRANCHES_HANJA[p.month.branch]}(${p.month.branchTenGod}) · [[득지]] ${ox(st.deukji)}: 일지 ${E.BRANCHES_HANJA[p.day.branch]}(${p.day.branchTenGod}) · [[득세]] ${ox(st.deukse)}`,
       ]);
   }
 
   function readYongsin(s) {
     const y = s.yongsin, info = ELEMENT_INFO[y.yongsin];
+    const here = [...chars(s), { label: '일간', hanja: s.dayMaster.hanja, element: s.dayMaster.element, god: '일간' }].filter(c => c.element === y.yongsin);
+    const nextY = nextYearsWith(s, y.yongsin), nextG = nextYearsWith(s, y.gisin, 2, false);
     const paragraphs = [
-      `[[용신]]은 내 사주의 균형을 맞추는 데 가장 필요한 기운입니다. 용신에 해당하는 운이 오면 일이 잘 풀리고, 생활 속에서 용신을 가까이하면 도움이 된다고 봅니다.`,
-      `나에게 필요한 기운은 ${elName(y.yongsin)}이고, 이를 돕는 [[희신]]은 ${elName(y.huisin)}입니다. 반대로 ${elName(y.gisin)}은 [[기신]]으로, 이 기운이 강한 시기에는 무리하지 않는 것이 좋습니다.`,
-      `행운의 요소 — 색: ${info.color} · 방향: ${info.direction} · 숫자: ${info.numbers} · 계절: ${info.season}`,
-      `도움이 되는 활동: ${info.acts}`,
+      here.length ? `원국 속 용신: ${here.map(c => `${c.label} ${c.hanja}`).join(', ')} — 필요한 기운을 이미 일부 갖고 있어, 운에서 더해지면 힘이 커집니다.` : `원국 속 용신: 없음 — 필요한 기운이 비어 있어, 이 기운이 들어오는 해에 변화가 특히 크게 느껴집니다.`,
+      nextY.length ? `용신이 들어오는 해: ${nextY.join(', ')}` : null,
+      nextG.length ? `기신 ${elName(y.gisin)}이 강해지는 해: ${nextG.join(', ')} — 무리하지 말고 지키는 쪽을 택하세요.` : null,
+      `행운의 요소 — 색 ${info.color} · 방향 ${info.direction} · 숫자 ${info.numbers} · ${personaAxes(s)[0].value >= 50 ? '함께하는' : '혼자 하는'} 추천 활동: ${(personaAxes(s)[0].value >= 50 ? info.acts.split(', ').slice(-2) : info.acts.split(', ').slice(0, 2)).join(', ')}`,
+      ...(y.johu && (y.methodId === 'eokbu' || !y.methodId) ? [`계절로 보면(조후) ${y.johu.reason.replace(' — ', '이라 ')}합니다.`] : []),
+      ...y.notes.map(n => n + '.'),
     ];
-    if (y.johu) paragraphs.push(`계절로 보면(조후) ${y.johu.reason.replace(' — ', '이라 ')}합니다.${y.johu.present ? '' : ' 원국에 이 기운이 없어 운에서 들어올 때 특히 반갑습니다.'}`);
-    for (const n of y.notes) paragraphs.push(n + '.');
     return section('yongsin', '용신 — 나에게 필요한 기운',
-      `${elName(y.yongsin)} 기운이 나를 돕습니다.`,
+      `${s.strength.level}한 ${s.dayMaster.text}${s.dayMaster.element}에게는 ${elName(y.yongsin)} 기운이 약이 되고, ${elName(y.gisin)} 기운은 부담이 됩니다.`,
       paragraphs,
       y.methodWhy ? [
+        '[[용신]]은 사주의 균형을 맞추는 데 가장 필요한 기운입니다. 용신 운이 오면 일이 잘 풀리고, 생활 속에서 가까이하면 도움이 된다고 봅니다.',
         `[[해석방법]]: ${y.method}으로 정했습니다. (화면 위쪽에서 다른 방법으로 바꿔 볼 수 있어요)`,
         ...y.methodWhy,
-        `내 일간(${dayEl(s)}) 기준으로 ${y.yongsin} 기운은 ${y.tenGodGroup}에 해당합니다.`,
-        `희신은 용신을 생해 주는 오행(${y.huisin}→${y.yongsin}), 기신은 용신을 극하는 오행(${y.gisin}→${y.yongsin})입니다.`,
+        `[[희신]]은 용신을 생해 주는 오행(${y.huisin}→${y.yongsin}), [[기신]]은 용신을 극하는 오행(${y.gisin}→${y.yongsin})입니다.`,
       ] : [
-        `[[억부]]법으로 정했습니다. ${s.strength.level} 사주라서 ${s.strength.strong ? '넘치는 힘을 덜어 주는' : '부족한 힘을 채워 주는'} 기운이 필요합니다.`,
-        `${y.reason}. 내 일간(${dayEl(s)}) 기준으로 ${josa(y.tenGodGroup, '은/는')} ${y.yongsin} 기운입니다.`,
-        `희신은 용신을 생해 주는 오행(${y.huisin}→${y.yongsin}), 기신은 용신을 극하는 오행(${y.gisin}→${y.yongsin})입니다.`,
-        y.johu ? `[[조후]]: ${E.BRANCHES[s.pillars.month.branch]}월생이라 계절의 온도 조절도 함께 봅니다.` : null,
-        '용신은 학파와 보는 방법(억부·조후·통관 등)에 따라 달라질 수 있어 참고용으로 활용하세요.',
+        '[[용신]]은 사주의 균형을 맞추는 데 가장 필요한 기운입니다.',
+        `[[억부]]법: ${y.reason}. 내 일간(${dayEl(s)}) 기준으로 ${josa(y.tenGodGroup, '은/는')} ${y.yongsin} 기운입니다.`,
+        `희신 ${y.huisin}, 기신 ${y.gisin}, 구신 ${y.gusin}`,
       ]);
   }
 
   function readPersonality(s) {
     const p = s.pillars, d = s.dayMaster;
+    const st = structures(s).filter(x => ['personality', 'career'].includes(x.area)).slice(0, 2);
     const g = s.strength.groups;
     const top = GROUPS.slice().sort((a, b) => g[b] - g[a])[0];
-    const topGod = Object.entries(s.tenGodCount).sort((a, b) => b[1] - a[1])[0][0];
     return section('personality', '성격 종합',
-      `${josa(STEM_INFO[d.stem].strength.split(', ').slice(0, 2).join(', '), '이/가')} 돋보이는 사람입니다.`,
+      `${josa(STEM_INFO[d.stem].strength.split(', ').slice(0, 2).join(', '), '이/가')} 돋보이고, ${GROUP_PERSONA[top].title} 기질이 강한 사람입니다.`,
       [
-        `기본 바탕은 ${STEM_INFO[d.stem].image}입니다. ${STEM_INFO[d.stem].personality}`,
-        `사회에서 보이는 모습(월지 ${p.month.branchTenGod}): ${TEN_GOD_INFO[p.month.branchTenGod].trait}`,
+        STEM_INFO[d.stem].personality,
+        p.month.stemTenGod ? `밖에서 보이는 모습(월간 ${p.month.stemTenGod}): ${TEN_GOD_INFO[p.month.stemTenGod].trait}` : null,
+        `사회 속의 나(월지 ${p.month.branchTenGod}): ${TEN_GOD_INFO[p.month.branchTenGod].trait}`,
         `속마음과 가까운 사람에게 보이는 모습(일지 ${p.day.branchTenGod}): ${TEN_GOD_INFO[p.day.branchTenGod].trait}`,
-        `가장 많은 십성은 ${josa(topGod, '으로/로')} ${TEN_GOD_INFO[topGod].trait}`,
-        STRENGTH_INFO[s.strength.level].split('. ').slice(1).join('. '),
+        p.hour ? `속으로 바라는 것·나이 들며 드러나는 모습(시간 ${p.hour.stemTenGod}): ${TEN_GOD_INFO[p.hour.stemTenGod].trait}` : null,
+        ...st.map(x => `${x.id}: ${x.text}`),
       ],
       [
-        `일간 ${d.hanja}(${d.text}${d.element})이 성격의 뿌리입니다.`,
-        `태어난 달(월지)은 사회 환경과 직업적 모습, 일지는 내면과 배우자 관계를 나타냅니다.`,
+        `일간 ${d.hanja}(${d.text}${d.element})이 성격의 뿌리이고, 월간은 겉모습, 월지는 사회 환경, 일지는 내면, 시간은 속으로 바라는 것을 봅니다.`,
         `십성 개수: ${Object.entries(s.tenGodCount).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ')} (가장 큰 묶음은 ${top})`,
       ]);
   }
 
   function readWealth(s) {
     const g = s.strength.groups, strong = s.strength.strong;
-    const jae = groupCount(s, '재성');
-    const jeong = s.tenGodCount.정재, pyeon = s.tenGodCount.편재;
     const jaeEl = groupElement(s, '재성');
-    const paragraphs = [];
-    let lead;
-    if (jae === 0 && g.재성 < 8) {
-      lead = '돈보다 가치를 좇는 타입, 재물은 재능을 통해 들어옵니다.';
-      paragraphs.push('사주에 재물을 뜻하는 [[재성]]이 드러나 있지 않습니다. 돈에 집착하지 않는 대신 관리에 무심하기 쉽습니다. 재물은 재성 운이 올 때나, 재능(식상)을 통해 들어옵니다.');
-    } else if (g.재성 >= 25 && !strong) {
-      lead = '돈 기회는 많지만 감당할 체력이 관건입니다.';
-      paragraphs.push('재성은 많은데 내 힘이 약한 "재다신약" 구조입니다. 돈이 보이는 기회는 많지만 다 잡으려다 지치거나 지출이 커지기 쉽습니다. 욕심을 줄이고, 믿을 만한 동료(비겁)나 공부·자격(인성)으로 힘을 키우면 재물이 붙습니다.');
-    } else if (g.재성 >= 15 && strong) {
-      lead = '재물을 다룰 힘이 있는 사주입니다.';
-      paragraphs.push('재성이 있고 그것을 감당할 힘(신강)도 있어 재물을 크게 다룰 수 있는 구조입니다. 적극적으로 기회를 잡아도 좋습니다.');
-    } else {
-      lead = '꾸준히 쌓아 가는 재물운입니다.';
-      paragraphs.push('재성이 적당히 있어 무리하지 않고 꾸준히 모으는 방식이 잘 맞습니다.');
-    }
-    if (g.식상 >= 12 && (jae > 0 || g.재성 >= 8)) paragraphs.push('재능(식상)이 재물(재성)로 이어지는 "식상생재" 흐름이 있습니다. 기술·콘텐츠·서비스처럼 내 실력을 팔아 돈을 버는 방식이 좋습니다.');
-    if (g.비겁 >= 35 && jae > 0) paragraphs.push('나와 같은 기운(비겁)이 많아 재물을 나눠 갖거나 빼앗기기 쉬운 구조("군겁쟁재")입니다. 동업, 보증, 돈 빌려주기는 신중하세요.');
-    if (jeong > pyeon) paragraphs.push('정재가 더 많아 월급·저축처럼 안정적으로 쌓는 재물이 잘 맞습니다.');
-    else if (pyeon > jeong) paragraphs.push('편재가 더 많아 사업·투자·영업처럼 굴리는 재물에 감각이 있습니다. 다만 들고 나는 폭이 크니 관리가 중요합니다.');
-    paragraphs.push(`재물을 뜻하는 오행은 ${elName(jaeEl)}입니다. ${josa(jaeEl, '이/가')} 들어오는 해와 대운에 재물 기회가 커집니다.`);
+    const jae = chars(s).filter(c => GOD_GROUP[c.god] === '재성');
+    const hidden = ['year', 'month', 'day', 'hour'].filter(k => s.pillars[k]).some(k => s.pillars[k].hiddenStems.some(h => GOD_GROUP[h.tenGod] === '재성' && h.role !== '정기'));
+    const jeong = s.tenGodCount.정재, pyeon = s.tenGodCount.편재;
+    const st = structures(s).filter(x => x.area === 'wealth');
+    const role = roleOf(s, jaeEl);
+    const ids = st.map(x => x.id);
+    const lead = ids.includes('재다신약') ? '돈 기회는 많지만, 감당할 힘을 키우는 것이 먼저인 재물운입니다.'
+      : ids.includes('군겁쟁재') ? '버는 힘은 있지만, 지키는 것이 숙제인 재물운입니다.'
+      : ids.includes('식상생재') ? '재능과 기술이 그대로 돈이 되는 재물운입니다.'
+      : ids.includes('재생관') ? '돈과 사회적 지위가 함께 올라가는 재물운입니다.'
+      : !jae.length ? (hidden ? '드러나지 않게 조용히 모으는 재물운입니다.' : '돈보다 가치를 좇는 타입으로, 재물은 재능과 운에서 들어옵니다.')
+      : strong && g.재성 >= 15 ? '큰 재물을 다룰 그릇이 있는 재물운입니다.'
+      : '무리하지 않고 꾸준히 쌓아 가는 재물운입니다.';
+    const paragraphs = [
+      jae.length ? `재물의 자리: ${jae.map(c => `${placeText(c)} — ${posMeaning(c)}`).join(' / ')}` : hidden ? '재물의 자리: 재성이 지지 속에만 숨어 있어, 겉으로 드러내기보다 실속 있게 모으는 편입니다.' : '재물의 자리: 원국에 재성이 없어 돈에 대한 집착이 적고, 재성 운이 올 때 재물 기회가 열립니다.',
+      jeong > pyeon ? `정재 중심(${jeong}개): 월급·저축처럼 안정적으로 쌓는 재물이 잘 맞습니다.` : pyeon > jeong ? `편재 중심(${pyeon}개): 사업·투자·영업처럼 굴리는 재물에 감각이 있지만 들고 나는 폭이 큽니다.` : jeong ? '정재와 편재가 함께 있어 안정 수입과 부수입을 함께 꾸리는 편입니다.' : null,
+      ...st.map(x => `${x.id}: ${x.text}`),
+      favorableRole(role) ? `재물을 뜻하는 ${josa(elName(jaeEl), '이/가')} 나의 ${role}입니다 — 돈을 벌수록 삶이 안정되는 구조입니다.` : role === '기신' || role === '구신' ? `재물을 뜻하는 ${josa(elName(jaeEl), '이/가')} 나의 ${role}입니다 — 돈을 좇을수록 지치기 쉬우니 무리한 확장은 피하세요.` : null,
+      `재물 기운이 들어오는 해: ${nextYearsWith(s, jaeEl).join(', ') || '12년 안에 뚜렷하지 않음'}`,
+    ];
     return section('wealth', '재물운', lead, paragraphs, [
-      `일간 ${dayEl(s)} 기준으로 내가 극하는(다스리는) 오행 ${josa(jaeEl, '이/가')} 재성, 곧 재물입니다.`,
-      `재성 비중 ${g.재성}% (글자 ${jae}개: 정재 ${jeong}, 편재 ${pyeon}), 식상 ${g.식상}%, 비겁 ${g.비겁}%, 신강약 ${s.strength.level}.`,
-      '재물은 "재성이 얼마나 있는가"와 "그것을 감당할 힘이 있는가(신강약)"를 함께 봅니다.',
+      `일간 ${dayEl(s)} 기준으로 내가 극하는(다스리는) 오행 ${josa(jaeEl, '이/가')} [[재성]], 곧 재물입니다.`,
+      `재성 비중 ${g.재성}% (정재 ${jeong}, 편재 ${pyeon}), 식상 ${g.식상}%, 비겁 ${g.비겁}%, 신강약 ${s.strength.level}, 재성 오행의 역할 ${role}.`,
+      '재물은 재성이 어디에 얼마나 있는지, 감당할 힘(신강약)이 있는지, 재성을 돕거나 빼앗는 구조(식상생재·군겁쟁재 등)가 있는지를 함께 봅니다.',
     ]);
   }
 
   function readCareer(s) {
-    const g = s.strength.groups;
-    const gk = s.gyeokguk;
+    const g = s.strength.groups, gk = s.gyeokguk, p = s.pillars;
     const top = GROUPS.slice().sort((a, b) => g[b] - g[a])[0];
     const y = s.yongsin.yongsin;
+    const st = structures(s).filter(x => x.area === 'career');
     let style;
     if (g.관성 + g.인성 >= g.식상 + g.재성 + 10) style = '조직 안에서 인정받으며 올라가는 "조직형"';
     else if (g.식상 + g.재성 >= g.관성 + g.인성 + 10) style = '내 재능과 수완으로 승부하는 "자유·사업형"';
     else style = '조직과 전문성을 함께 쓰는 "전문가형"';
+    const monthChars = chars(s).filter(c => c.label[0] === '월');
     return section('career', '직업·적성',
-      `${style}에 가깝습니다.`,
+      st.length ? `${gk.name}에 ${st[0].id} 구조 — ${style}에 가깝습니다.` : `${gk.name} — ${style}에 가깝습니다.`,
       [
-        `[[격국]]은 ${gk.name}입니다. ${GYEOK_INFO[gk.tenGod]}`,
-        `가장 강한 기운이 ${top}이므로 이런 분야에 강점이 있습니다: ${GROUP_INFO[top].careers}.`,
-        `나에게 필요한 기운(용신)인 ${elName(y)}과 관련된 분야도 잘 맞습니다: ${ELEMENT_INFO[y].careers}.`,
+        `격국 ${gk.name}: ${GYEOK_INFO[gk.tenGod]}`,
+        ...monthChars.map(c => `${placeText(c)}: ${posMeaning(c)}`),
+        ...st.map(x => `${x.id}: ${x.text}`),
+        `가장 강한 ${top}의 분야: ${GROUP_INFO[top].careers}`,
+        `용신 ${elName(y)}의 분야: ${ELEMENT_INFO[y].careers}`,
       ],
       [
-        `격국은 태어난 달(월지 ${E.BRANCHES_HANJA[s.pillars.month.branch]})에 숨은 천간 중 ${gk.transparent ? `겉으로 드러난(투출한) ${gk.baseStem}` : `대표 천간(정기) ${gk.baseStem}`}의 십성(${gk.tenGod})으로 정했습니다.`,
-        `관성+인성 ${Math.round((g.관성 + g.인성) * 10) / 10}% vs 식상+재성 ${Math.round((g.식상 + g.재성) * 10) / 10}%로 일하는 방식을 판단했습니다. 관성·인성은 규칙과 자격, 식상·재성은 재능과 수완을 뜻합니다.`,
-        `용신 오행의 분야에서 일하면 내 사주에 부족한 기운을 매일 채우는 셈이라 좋다고 봅니다.`,
+        `격국은 태어난 달(월지 ${E.BRANCHES_HANJA[p.month.branch]})에 숨은 천간 중 ${gk.transparent ? `겉으로 드러난(투출한) ${gk.baseStem}` : `대표 천간(정기) ${gk.baseStem}`}의 십성(${gk.tenGod})으로 정했습니다.`,
+        '월주는 사회 활동과 직장의 자리라, 월간·월지의 십성을 자리별 해석(사주명리 지식 DB)으로 읽었습니다.',
+        `관성+인성 ${Math.round((g.관성 + g.인성) * 10) / 10}% vs 식상+재성 ${Math.round((g.식상 + g.재성) * 10) / 10}%로 일하는 방식을 판단했습니다.`,
       ]);
   }
 
@@ -809,44 +900,49 @@
     const concerns = new Set();
     for (const e of excess) {
       const victim = ELS[(elIdx(e) + 2) % 5];
-      paragraphs.push(`${elName(e)} 기운이 강해 ${ELEMENT_INFO[e].organ} 쪽에 무리가 가기 쉽고, ${josa(e, '이/가')} 누르는 ${elName(victim)}의 ${ELEMENT_INFO[victim].organ}도 약해지기 쉽습니다.`);
+      paragraphs.push(`${elName(e)} 과다(${percent[e]}%): ${ELEMENT_INFO[e].organ} 쪽에 무리가 가기 쉽고, ${josa(e, '이/가')} 누르는 ${elName(victim)}의 ${ELEMENT_INFO[victim].organ}도 약해지기 쉽습니다.`);
       concerns.add(e); concerns.add(victim);
     }
-    for (const e of missing) {
-      paragraphs.push(`${elName(e)} 기운이 없어 ${ELEMENT_INFO[e].organ} 건강을 평소에 챙기는 것이 좋습니다.`);
-      concerns.add(e);
-    }
+    for (const e of missing) { paragraphs.push(`${elName(e)} 없음: ${ELEMENT_INFO[e].organ} 건강을 평소에 챙기는 것이 좋습니다.`); concerns.add(e); }
     const weak = ELS.filter(e => !missing.includes(e) && percent[e] < 8);
-    for (const e of weak) { if (!concerns.has(e)) { paragraphs.push(`${elName(e)} 기운이 약한 편이라 ${ELEMENT_INFO[e].organ} 관리에 신경 쓰세요.`); concerns.add(e); } }
-    if (!paragraphs.length) paragraphs.push('오행이 비교적 고르게 있어 특별히 약한 곳은 두드러지지 않습니다. 규칙적인 생활로 균형을 유지하세요.');
-    paragraphs.push('사주로 보는 건강은 체질적인 경향일 뿐, 실제 진단은 꼭 의료기관에서 받으세요.');
-    return section('health', '건강', concerns.size ? `${[...concerns].map(e => ELEMENT_INFO[e].organ.split('·')[0]).join(', ')} 관리에 신경 쓰면 좋습니다.` : '오행이 고른 편입니다.',
+    for (const e of weak) if (!concerns.has(e)) { paragraphs.push(`${elName(e)} 약함(${percent[e]}%): ${ELEMENT_INFO[e].organ} 관리에 신경 쓰세요.`); concerns.add(e); }
+    const season = SEASON_OF[s.pillars.month.branch];
+    const seasonNote = { 여름: '열이 오르기 쉬워 수분 보충과 더위 관리', 겨울: '몸이 차기 쉬워 보온과 혈액순환', 봄: '기운이 위로 뻗쳐 긴장과 근육 피로 풀기', 가을: '건조해지기 쉬워 호흡기와 피부 보습' }[season];
+    const st = seasonState(s);
+    const weakBody = ['신약', '극신약', '중화신약'].includes(s.strength.level);
+    paragraphs.push(`${season}에 태어난 ${s.dayMaster.text}${s.dayMaster.element}(계절의 힘 '${st}'): ${seasonNote}가 기본이고, ${st === '사' || st === '수' ? '계절에 눌리는 체질이라 무리한 일정이 몸에 바로 드러납니다' : st === '왕' ? '타고난 체력이 좋아 오히려 과신하다 탈이 나기 쉽습니다' : weakBody ? '기운이 약한 편이라 회복에 시간이 걸려 수면이 가장 좋은 보약입니다' : '체력은 무난하지만 넘치는 기운을 운동으로 풀어 주면 좋습니다'}.`);
+    return section('health', '건강', concerns.size ? `${[...concerns].map(e => ELEMENT_INFO[e].organ.split('·')[0]).join(', ')} 관리에 신경 쓰면 좋습니다.` : `오행이 고른 편이라, ${season}생의 계절 관리만 챙기면 됩니다.`,
       paragraphs, [
         '오행은 각각 몸의 기관과 연결됩니다: ' + ELS.map(e => `${e}=${ELEMENT_INFO[e].organ}`).join(', '),
         '어떤 오행이 너무 많으면 그 기관이 과로하고, 그 오행이 극하는(누르는) 오행의 기관도 약해진다고 봅니다. 없는 오행의 기관도 약점이 되기 쉽습니다.',
+        '사주로 보는 건강은 체질적인 경향일 뿐, 실제 진단은 꼭 의료기관에서 받으세요.',
       ]);
   }
 
   function readSinsal(s) {
     const p = s.pillars;
     const items = [];
+    const names = [];
     const seen = new Set();
     for (const x of s.sinsal) {
       const key = x.name + x.positions.join();
       if (seen.has(key) || !SINSAL_INFO[x.name]) continue;
       seen.add(key);
+      names.push(x.name);
       items.push(`${x.name} (${x.positions.join('·')}): ${SINSAL_INFO[x.name]}`);
     }
     const notable = ['역마살', '년살(도화)', '화개살', '장성살'];
     for (const [k, l] of POS) {
       if (!p[k]) continue;
       const n = p[k].sinsal12.byYear;
-      if (notable.includes(n)) items.push(`${n === '년살(도화)' ? '도화살' : n} (${l}지): ${SINSAL12_INFO[n]}`);
+      if (notable.includes(n)) { const nm = n === '년살(도화)' ? '도화살' : n; names.push(nm); items.push(`${nm} (${l}지): ${SINSAL12_INFO[n]}`); }
     }
+    const uniq = [...new Set(names)];
     return section('sinsal', '신살 — 사주에 붙은 별',
-      items.length ? `${items.length}개의 별이 있습니다.` : '눈에 띄는 신살이 없는 담백한 사주입니다.',
-      ['[[신살]]은 특정 글자 조합에 붙는 별명입니다. 좋은 작용을 하는 귀인과, 주의할 점을 알려 주는 살이 있으며 보조적인 참고 요소입니다.', ...items],
+      uniq.length ? `${uniq.slice(0, 3).join(', ')}${uniq.length > 3 ? ` 외 ${uniq.length - 3}개` : ''}의 별이 있습니다.` : '눈에 띄는 신살이 없는 담백한 사주입니다.',
+      items.length ? items : ['귀인이나 강한 살이 두드러지지 않아, 별의 영향보다 오행과 십성의 균형이 삶을 좌우하는 사주입니다.'],
       [
+        '[[신살]]은 특정 글자 조합에 붙는 별명입니다. 좋은 작용을 하는 귀인과, 주의할 점을 알려 주는 살이 있으며 보조적인 참고 요소입니다.',
         '천을귀인·문창귀인·양인살 등은 일간을 기준으로, 천덕·월덕귀인은 태어난 달을 기준으로, 역마·도화·화개 등 12신살은 띠(년지)를 기준으로 찾습니다.',
         `[[공망]]: 일주 ${p.day.hanja} 기준 ${s.gongmang.hanja}이 비어 있습니다.`,
       ]);
@@ -857,10 +953,11 @@
       const where = [...new Set(r.members.map(m => m[0]))].map(l => POSITION_INFO[l].split(' — ')[0]).join('·');
       return `${r.name} (${where}): ${RELATION_INFO[r.type] || ''}`;
     });
+    const types = s.relations.map(r => r.type).filter((v, i, a) => a.indexOf(v) === i);
     return section('relations', '합·충 — 글자끼리의 관계',
-      items.length ? `${s.relations.map(r => r.type).filter((v, i, a) => a.indexOf(v) === i).join(', ')} 관계가 있습니다.` : '원국 안에 큰 합이나 충이 없어 비교적 안정된 구조입니다.',
-      ['글자끼리는 서로 끌어당기기도([[합]]) 부딪히기도([[충]]) 합니다. 어느 기둥 사이에서 일어나는지에 따라 영향을 받는 사람과 시기가 달라집니다.', ...items],
-      Object.values(POSITION_INFO).map(x => x));
+      items.length ? `${s.relations.slice(0, 2).map(r => r.name).join(', ')}${s.relations.length > 2 ? ` 등 ${types.join('·')}` : ''}이 있습니다.` : '원국 안에 큰 합이나 충이 없어 비교적 안정된 구조입니다.',
+      items.length ? items : ['네 기둥이 서로 크게 끌어당기거나 부딪히지 않아, 삶의 변화가 원국보다 운(대운·세운)에서 주로 옵니다.'],
+      ['글자끼리는 서로 끌어당기기도([[합]]) 부딪히기도([[충]]) 합니다. 어느 기둥 사이에서 일어나는지에 따라 영향을 받는 사람과 시기가 달라집니다.', ...Object.values(POSITION_INFO)]);
   }
 
   function readFullSaju(s) {
@@ -1149,6 +1246,19 @@
   };
 
   const pct = (a, b) => (a + b > 0 ? Math.round((b / (a + b)) * 100) : 50);
+  // 가장 강한 두 십성 묶음의 조합이 만드는 가치관
+  const VALUE_MIX = {
+    비겁식상: '내 방식대로 표현하며 사는 자유로운 삶을 바랍니다', 비겁재성: '스스로 벌고 스스로 결정하는 독립적인 삶을 바랍니다',
+    비겁관성: '실력으로 인정받고 자리를 지키는 삶을 바랍니다', 비겁인성: '나를 믿고 배움을 쌓아 가는 단단한 삶을 바랍니다',
+    식상비겁: '재능을 마음껏 펼치며 내 사람들과 즐겁게 사는 삶을 바랍니다', 식상재성: '좋아하는 일이 곧 돈이 되는 삶을 바랍니다',
+    식상관성: '재능을 사회에서 인정받는 삶을 바라지만, 틀과 자유 사이에서 갈등합니다', 식상인성: '깊이 있는 생각을 세상에 표현하는 삶을 바랍니다',
+    재성비겁: '실속을 챙기며 내 영역을 넓히는 삶을 바랍니다', 재성식상: '능력을 성과와 돈으로 증명하는 삶을 바랍니다',
+    재성관성: '경제적 안정과 사회적 지위를 함께 얻는 삶을 바랍니다', 재성인성: '현실과 이상 사이에서 균형 잡힌 삶을 바랍니다',
+    관성비겁: '책임을 다하면서도 내 자존심을 지키는 삶을 바랍니다', 관성식상: '규칙 안에서 창의성을 발휘하는 삶을 바랍니다',
+    관성재성: '안정된 조직과 경제적 기반 위의 반듯한 삶을 바랍니다', 관성인성: '명예와 학식을 함께 쌓는 존경받는 삶을 바랍니다',
+    인성비겁: '배움과 자기 확신으로 흔들리지 않는 삶을 바랍니다', 인성식상: '배운 것을 나누고 가르치는 삶을 바랍니다',
+    인성재성: '의미와 현실을 함께 챙기는 삶을 바랍니다', 인성관성: '바른 지식과 명예로 신뢰받는 삶을 바랍니다',
+  };
   const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, Math.round(v)));
 
   // 성향 지표 4개: value는 오른쪽 성향 쪽 비율(0~100)
@@ -1206,6 +1316,12 @@
     const star = male ? '재성' : '관성';
     const starCnt = groupCount(s, star);
     const spo = analyzeSpouse(s);
+    const friendChars = chars(s).filter(c => GOD_GROUP[c.god] === '비겁');
+    const starsP = [...new Set([
+      ...s.sinsal.filter(x => ['천을귀인', '홍염살', '문창귀인'].includes(x.name)).map(x => `${x.name}(${x.positions.join('·')})`),
+      ...['year', 'month', 'day', 'hour'].filter(k => p[k] && ['년살(도화)', '역마살', '화개살', '장성살'].includes(p[k].sinsal12.byYear)).map(k => `${p[k].sinsal12.byYear.replace('년살(도화)', '도화살')}(${POS_LABEL_KO[k]})`),
+    ])];
+    const frictionP = s.relations.filter(r => ['원진', '형', '충'].includes(r.type)).map(r => r.name).slice(0, 2);
     const bigeop = groupCount(s, '비겁');
     const hasDohwa = ['year', 'month', 'day', 'hour'].some(k => p[k] && (p[k].sinsal12.byYear === '년살(도화)' || p[k].sinsal12.byDay === '년살(도화)'));
     const why1 = `일간 ${d.hanja}(${d.text}${d.element}) → "${sp.nick}"`;
@@ -1222,37 +1338,33 @@
         why2 + `: 사주 여덟 글자 중 ${g1}에 해당하는 기운이 가장 많아 성격에 가장 크게 드러납니다.`,
         `${josa(g1, '은/는')} ${GROUP_INFO[g1].plain}입니다.`,
       ]),
-      section('p-work', '일할 때의 나', `${josa(gp1.strengths.join('·'), '이/가')} 무기인 ${gp1.title}형 일꾼입니다.`, [
-        sp.work,
-        gp1.work,
-        `직장에서 보이는 모습(태어난 달 ${p.month.branchTenGod}): ${TEN_GOD_INFO[p.month.branchTenGod].trait}`,
-        s.strength.strong
-          ? '내 힘이 강한 편이라 책임이 큰 자리, 스스로 결정할 수 있는 자리에서 능력이 잘 나옵니다.'
-          : '내 힘이 섬세한 편이라 좋은 팀과 믿을 만한 리더가 있는 환경에서 실력이 꽃핍니다.',
-        `잘 맞는 분야: ${GROUP_INFO[g1].careers}`,
+      section('p-work', '일할 때의 나', `${sp.nick}의 기질에 ${josa(gp1.strengths.slice(0, 2).join('·'), '이/가')} 무기인 ${gp1.title}형 일꾼입니다.`, [
+        `${sp.work} 여기에 ${g1}의 기운이 더해집니다 — ${gp1.work}`,
+        ...chars(s).filter(c => c.label[0] === '월').map(c => `직장의 자리 ${placeText(c)}: ${posMeaning(c)}`),
+        ...structures(s).filter(x => x.area === 'career').slice(0, 2).map(x => `${x.id}: ${x.text}`),
+        s.gyeokguk ? `일의 그릇(${s.gyeokguk.name}): ${GYEOK_INFO[s.gyeokguk.tenGod]}` : null,
+        `잘 맞는 분야: ${GROUP_INFO[g1].careers.split(', ').slice(0, 3).join(', ')} + 용신 ${s.yongsin.yongsin}의 ${ELEMENT_INFO[s.yongsin.yongsin].careers.split(', ').slice(0, 2).join(', ')}`,
       ], [
         `태어난 달(월지)은 사회 활동과 직장의 자리입니다. 이 자리의 십성이 ${p.month.branchTenGod}입니다.`,
         why2,
         `신강약: ${s.strength.level}(${s.strength.score}점)`,
       ]),
       section('p-friend', '친구 관계에서의 나', `${bigeop >= 3 ? '사람이 많이 모이는' : bigeop === 0 ? '소수와 깊게 사귀는' : '꾸준히 관계를 이어 가는'} ${axes[0].value >= 60 ? '활발한' : axes[0].value <= 40 ? '속 깊은' : '편안한'} 친구입니다.`, [
-        sp.friend,
-        gp1.friend,
-        bigeop >= 3 ? '친구·동료를 뜻하는 비겁이 많아 주변에 사람이 많고, 친구에게서 힘을 얻습니다. 다만 돈거래는 친구 사이라도 분명히 하는 게 좋아요.'
-          : bigeop === 0 ? '친구를 뜻하는 비겁이 없어 넓은 인간관계보다 마음 맞는 소수와 깊게 지내는 편입니다.'
-          : '친구 관계는 넓지도 좁지도 않게, 마음 맞는 사람들과 꾸준히 이어 가는 편입니다.',
+        `${sp.friend} 여기에 ${g1}의 기운이 더해집니다 — ${gp1.friend}`,
+        ...(friendChars.length ? friendChars.map(c => `친구의 자리 ${placeText(c)}: ${posMeaning(c)}`) : ['친구를 뜻하는 비겁이 원국에 없어, 넓은 인간관계보다 마음 맞는 소수와 깊게 지내는 편입니다.']),
+        starsP.length ? `사람을 끄는 별: ${starsP.join(', ')}` : null,
+        frictionP.length ? `관계의 마찰: ${frictionP.join(', ')} — 가까운 사이일수록 말과 감정을 한 번 더 살피세요.` : null,
         axes[0].value >= 60 ? '외향적인 편이라 모임에서 먼저 말을 거는 쪽입니다.' : axes[0].value <= 40 ? '내향적인 편이라 친해지기까지 시간이 걸리지만, 한번 친해지면 오래 갑니다.' : null,
       ], [
         `사주에서 친구·형제·동료는 나와 같은 기운인 비겁으로 봅니다. 원국에 비겁이 ${bigeop}개 있습니다.`,
         `외향 지표 ${axes[0].value}%: ${axes[0].why}`,
       ]),
-      section('p-love', '연애할 때의 나', `${axes[1].value >= 60 ? '마음을 나누며 깊어지는' : axes[1].value <= 40 ? '믿음과 행동으로 지키는' : '편안하게 스며드는'} 연애를 합니다.`, [
-        sp.love,
-        gp1.love,
+      section('p-love', '연애할 때의 나', `${axes[1].value >= 60 ? '마음을 나누며 깊어지는' : axes[1].value <= 40 ? '믿음과 행동으로 지키는' : '편안하게 스며드는'} 연애를 하고, ${spo.grade.replace(' 사주', '')}입니다.`, [
+        `${sp.love} 여기에 ${g1}의 기운이 더해집니다 — ${gp1.love}`,
         `[[배우자궁]](일지)의 십성이 ${josa(p.day.branchTenGod, '이라/라')} ${SPOUSE_BY_GOD[p.day.branchTenGod]}`,
-        `배우자운: ${spo.grade} (지수 ${spo.index}점)`,
+        `배우자운 ${spo.index}점(${spo.grade}): ${spo.factors.length ? `가장 큰 요인은 '${spo.factors.slice().sort((x, y) => Math.abs(y.w) - Math.abs(x.w))[0].title}'입니다` : '두드러진 요인이 없습니다'}.`,
         ...spo.factors.slice().sort((x, y) => Math.abs(y.w) - Math.abs(x.w)).slice(0, 2).map(f => `${f.title}: ${f.text}`),
-        hasDohwa ? '도화살이 있어 사람을 끄는 매력이 있습니다.' : null,
+        hasDohwa ? `도화살(${['year', 'month', 'day', 'hour'].filter(k => p[k] && (p[k].sinsal12.byYear === '년살(도화)' || p[k].sinsal12.byDay === '년살(도화)')).map(k => POS_LABEL_KO[k]).join('·')})이 있어 ${p.day.sinsal12.byYear === '년살(도화)' || p.day.sinsal12.byDay === '년살(도화)' ? '배우자 자리에서부터 사람을 끄는 매력이 드러납니다' : '사람을 끄는 매력이 있습니다'}.` : null,
       ], [
         `${male ? '남성은 재성(정재=아내, 편재=연인)' : '여성은 관성(정관=남편, 편관=연인)'}을 배우자의 별로 봅니다. 원국 위치: ${spo.occText} (${starCnt}개)`,
         `배우자운 요인: ${spo.factors.map(f => `${f.title} ${f.w > 0 ? '+' : ''}${f.w}`).join(', ') || '없음'}`,
@@ -1260,8 +1372,7 @@
         `일간 ${d.hanja}의 기질("${sp.nick}")이 연애 스타일의 바탕이 됩니다.`,
       ]),
       section('p-value', '가치관 — 내가 가장 중요하게 여기는 것', `${gp1.value}, 그리고 ${sp.value.split(' — ')[0]}`, [
-        `1순위: ${gp1.value}. ${g1}의 기운이 강한 사람은 이것이 채워질 때 행복을 느낍니다.`,
-        `2순위: ${gp2.value}. 두 번째로 강한 ${g2}의 기운에서 나옵니다.`,
+        `우선순위: ${josa(gp1.value, '이/가')} 먼저, ${josa(gp2.value, '이/가')} 그다음입니다 — ${g1}(${g[g1]}%)과 ${g2}(${g[g2]}%)가 가장 강한 사주라, ${VALUE_MIX[g1 + g2] || `${gp1.value}을(를) 지키면서 ${gp2.value}을(를) 함께 채울 때 만족이 큽니다`}.`,
         `타고난 바탕(${d.text}${d.element})이 원하는 것: ${sp.value}.`,
         `반대로 ${gp1.stress} 가장 크게 흔들립니다.`,
       ], [
@@ -1269,10 +1380,10 @@
         `두 번째로 강한 십성 묶음 ${g2}(${g[g2]}%)`,
         why1,
       ]),
-      section('p-stress', '스트레스와 회복법', `${gp1.stress} 스트레스를 받아요.`, [
-        `스트레스 신호: ${gp1.weaknesses.join(', ')}이 평소보다 심해진다면 지쳤다는 뜻입니다.`,
-        `회복에 좋은 것: ${ELEMENT_INFO[s.yongsin.yongsin].acts}`,
-        `${elName(s.yongsin.yongsin)} 기운을 가까이하세요. 색은 ${ELEMENT_INFO[s.yongsin.yongsin].color}, 방향은 ${ELEMENT_INFO[s.yongsin.yongsin].direction}이 좋습니다.`,
+      section('p-stress', '스트레스와 회복법', `${gp1.stress}, 그리고 ${{ 비겁: '남과 비교당할 때', 식상: '말을 참아야 할 때', 재성: '성과를 재촉받을 때', 관성: '평가받을 때', 인성: '쉴 틈이 없을 때' }[GOD_GROUP[p.month.branchTenGod]]} 스트레스를 받아요.`, [
+        `스트레스 신호: 평소의 약점(${STEM_INFO[d.stem].weakness.split(', ')[0]}, ${gp1.weaknesses[0]})이 유난히 두드러진다면 지쳤다는 뜻입니다.`,
+        `환경에서 오는 압박(월지 ${p.month.branchTenGod}): ${{ 비겁: '경쟁과 비교', 식상: '하고 싶은 말을 참아야 하는 상황', 재성: '성과·돈에 대한 압박', 관성: '평가와 책임', 인성: '생각할 틈 없이 몰아치는 일정' }[GOD_GROUP[p.month.branchTenGod]]}에 특히 지치기 쉽습니다.`,
+        `회복 방식: ${s.strength.strong ? '넘치는 힘을 밖으로 풀어야 회복되는' : '기운을 채워야 회복되는'} ${axes[0].value >= 60 ? '외향' : axes[0].value <= 40 ? '내향' : '균형'}형이라, ${s.strength.strong ? (axes[0].value >= 60 ? '사람들과 함께 땀 흘리는 운동이나 모임' : '혼자 몰입할 수 있는 운동이나 작업') : (axes[0].value >= 60 ? '믿는 사람과의 수다와 맛있는 식사' : '충분한 잠과 혼자만의 조용한 시간')}이 가장 빨리 회복시켜 줍니다. 여기에 ${elName(s.yongsin.yongsin)} 기운의 활동(${ELEMENT_INFO[s.yongsin.yongsin].acts.split(', ').slice(0, 2).join(', ')})을 더하면 좋아요.`,
       ], [
         `스트레스 원인은 가장 강한 기운(${g1})이 막힐 때 생깁니다.`,
         `회복법은 나에게 필요한 기운인 [[용신]](${s.yongsin.yongsin})에서 찾았습니다.`,
@@ -1615,6 +1726,20 @@
     관성: '승진·합격·취업 같은 사회적 인정',
     인성: '공부·자격 취득과 윗사람의 도움',
   };
+  const HARD_ADVICE = {
+    비겁: '동업·보증·돈 빌려주기를 피하고, 경쟁에 휘말리기보다 내 몫을 지키세요.',
+    식상: '말과 글을 한 번 더 다듬고, 충동적인 퇴사·전업 결정은 미루세요.',
+    재성: '큰 투자와 확장을 줄이고 현금 흐름과 체력을 먼저 챙기세요.',
+    관성: '무리한 일정을 줄이고 건강검진·법적 서류를 꼼꼼히 확인하세요.',
+    인성: '생각만 길어지지 않게 작은 실행을 이어 가고, 계약·문서를 꼼꼼히 보세요.',
+  };
+  const GOOD_ADVICE = {
+    비겁: '함께할 동료와 네트워크를 미리 만들어 두면 독립·협업의 기회를 잡기 좋습니다.',
+    식상: '포트폴리오·작품·콘텐츠를 미리 쌓아 두면 재능을 펼칠 기회가 열립니다.',
+    재성: '사업 계획과 자금 계획을 미리 세워 두면 수입을 늘릴 기회를 잡기 좋습니다.',
+    관성: '자격·경력을 정리해 두면 승진·이직·합격의 기회를 잡기 좋습니다.',
+    인성: '공부·자격증 준비를 미리 시작하면 그 시기에 결실을 봅니다.',
+  };
   const tenseText = (theme, kind, tense) => {
     const t = josa(theme, kind === 'hard' ? '으로/로' : '이/가');
     if (kind === 'hard') return { past: `${t} 힘들었을 가능성이 높아요.`, now: `${t} 힘든 시기를 지나고 있어요.`, future: `${josa(theme, '을/를')} 조심해야 하는 시기예요.` }[tense];
@@ -1714,7 +1839,7 @@
         [
           cur?.dae ? `지금 대운: ${cur.dae.age}세부터 ${cur.dae.hanja}(${cur.dae.text}) — 10년의 큰 흐름은 ${TEN_GOD_INFO[cur.dae.stemTenGod].short}입니다.` : null,
           cur ? `올해 세운: ${cur.seun.hanja}(${cur.seun.text}) — ${TEN_GOD_INFO[cur.seun.stemTenGod].short}입니다.` : null,
-          `인생 평균: ${Math.round(sorted.reduce((a, b) => a + b, 0) / sorted.length)}점. 이보다 높으면 순풍, 낮으면 역풍인 해로 보세요.`,
+          cur ? `${josa(`올해 ${cur.score}점`, '은/는')} 인생 평균 ${Math.round(sorted.reduce((a, b) => a + b, 0) / sorted.length)}점보다 ${cur.score >= Math.round(sorted.reduce((a, b) => a + b, 0) / sorted.length) ? '높아 순풍' : '낮아 역풍'} 쪽입니다.` : null,
         ],
         [
           '[[인생그래프]]: 해마다 세운(1년 운) 60% + 대운(10년 운) 40%로 계산했습니다.',
@@ -1738,10 +1863,10 @@
           ...hardMonths.map(m => `${monthLabel(m)}(${m.jie} 이후) ${m.hanja}: ${m.why.join(', ')}`),
         ]),
       section('life-future-hard', '앞으로 조심할 시기', futHard.length ? `${futHard.map(p => p.from === p.to ? `${p.from}년` : `${p.from}~${p.to}년`).join(', ')}에는 무리하지 마세요.` : '가까운 미래에 크게 거친 시기는 보이지 않습니다.',
-        futHard.length ? [...futHard.map(p => describe(p, 'hard', 'future')), '이 시기에는 큰 투자·확장보다 지키는 쪽을 택하고, 건강검진과 계약서 확인을 꼼꼼히 하세요.'] : none('준비한 일을 꾸준히 밀고 나가도 좋은 흐름입니다.'),
+        futHard.length ? [...futHard.map(p => describe(p, 'hard', 'future')), `대비법: ${HARD_ADVICE[futHard[0].group]}`] : none('준비한 일을 꾸준히 밀고 나가도 좋은 흐름입니다.'),
         futHard.map(whyOf)),
       section('life-future-good', '앞으로 잘 풀리는 시기', futGood.length ? `${futGood.map(p => p.from === p.to ? `${p.from}년` : `${p.from}~${p.to}년`).join(', ')}에 기회가 옵니다.` : '가까운 미래에는 큰 상승기보다 꾸준함이 필요한 흐름입니다.',
-        futGood.length ? [...futGood.map(p => describe(p, 'good', 'future')), '중요한 도전(이직, 창업, 결혼, 큰 계약)은 이 시기에 맞춰 준비하면 좋습니다.'] : none('작은 성과를 꾸준히 쌓으면 그다음 상승기에 크게 도약합니다.'),
+        futGood.length ? [...futGood.map(p => describe(p, 'good', 'future')), `준비법: ${GOOD_ADVICE[futGood[0].group]}`] : none('작은 성과를 꾸준히 쌓으면 그다음 상승기에 크게 도약합니다.'),
         futGood.map(whyOf)),
     ];
     return { points, current: Y, hardCut, goodCut, periods: { hard, good }, months, sections };

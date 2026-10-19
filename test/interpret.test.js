@@ -84,5 +84,26 @@ check('조사 무받침', I.josa('화', '이/가') === '화가');
 check('조사 은/는', I.josa('경금', '은/는') === '경금은');
 for (let k = 0; k < 30; k++) { const t = JSON.stringify(I.readCompat(M.applyMethod(S.analyzeSaju(randomPerson()), 'consensus'), M.applyMethod(S.analyzeSaju(randomPerson()), 'consensus'))); check('조사 괄호', !/\((가|를|는|을|이)\)/.test(t)); }
 
+// 다양성: 여러 사람에게 글자까지 똑같이 나오는 문장(10% 이상의 사람에게 반복)이 섹션 평균 30% 미만이어야 한다
+{
+  const bySec = {};
+  for (let i = 0; i < 150; i++) {
+    const s = M.applyMethod(S.analyzeSaju(randomPerson()), 'consensus', 2026);
+    const add = (id, x) => (bySec[id] ||= []).push(new Set([x.lead, ...x.paragraphs]));
+    I.readFullSaju(s).sections.forEach(x => add('종합:' + x.id, x));
+    I.readPersona(s).sections.forEach(x => add('성격:' + x.id, x));
+  }
+  const rates = Object.entries(bySec).map(([id, sets]) => {
+    const freq = new Map();
+    for (const st of sets) for (const t of st) freq.set(t, (freq.get(t) || 0) + 1);
+    let common = 0, all = 0;
+    for (const st of sets) for (const t of st) { all++; if (freq.get(t) >= sets.length * 0.1) common++; }
+    return [id, common / all];
+  });
+  const avg = rates.reduce((a, [, r]) => a + r, 0) / rates.length;
+  check('풀이 다양성(평균 공통 문장 < 30%)', avg < 0.3, `${Math.round(avg * 100)}% — ${rates.sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id, r]) => `${id} ${Math.round(r * 100)}%`).join(', ')}`);
+  console.log(`풀이 다양성: 평균 공통 문장 ${Math.round(avg * 100)}%`);
+}
+
 console.log(`${total}건 중 실패 ${failed}건`);
 process.exit(failed ? 1 : 0);
