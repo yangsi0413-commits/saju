@@ -63,6 +63,9 @@ for (let i = 0; i < 400; i++) {
     const c = I.readCompat(s, other);
     check('궁합 점수 범위', c.score >= 0 && c.score <= 100, label);
     check('궁합 항목 8개', c.categories.length === 8 && c.categories.every(x => x.score >= 0 && x.score <= 100), label);
+    const star = c.categories.find(x => x.key === 'star');
+    check('배우자 별: 제목·본문 일치', !(star.verdict.includes('정으로') && /쪽에서 (강하게|은근히) 끌/.test(star.text)), `${star.verdict} / ${star.text}`);
+    check('배우자 별: 점수 계산 표시', star.text.includes(`${star.score}점`) && star.text.includes('점수 계산'), star.text);
     scan('궁합', c);
     const cmp = I.compareCompat(s, other, M.applyMethod(S.analyzeSaju(randomPerson()), methodId, 2026));
     check('비교 결과 2개', cmp.results.length === 2, label);
