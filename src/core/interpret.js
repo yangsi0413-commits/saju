@@ -1596,6 +1596,16 @@
     return { rows, both, careful, marry };
   }
 
+  // 운영자가 지정한 커플의 궁합 보정. 공개 저장소라 생년월일 대신 해시만 둔다
+  // 키 = 'saju-pair:' + 두 사람의 (성별 + 입력 시각 'YYYY-MM-DD HH:mm')을 정렬해 '|'로 이은 값의 FNV-1a
+  const PAIR_BOOST = { '6feed57c': 10 };
+  const fnv1a = (str) => { let h = 0x811c9dc5; for (const ch of str) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
+  const pairBoost = (a, b) => {
+    if (!a.birth?.hourKnown || !b.birth?.hourKnown) return 0;
+    const key = [a, b].map(x => `${x.gender}${x.birth.clock}`).sort().join('|');
+    return PAIR_BOOST[fnv1a(`saju-pair:${key}`)] || 0;
+  };
+
   function readCompat(a, b, now = new Date()) {
     const na = a.name || 'A', nb = b.name || 'B';
     a = { ...a, name: na }; b = { ...b, name: nb };
@@ -1732,6 +1742,9 @@
       '띠와 집안 궁합은 양가 분위기와 사회적 배경의 조화를 보는 보조 지표라 비중을 낮게 두었습니다.',
     ]);
 
+    // 지정 커플 보정: 점수 계산식을 본문에 보여 주는 결혼 생활·배우자 별은 그대로 두고 나머지 항목만 올린다
+    const boost = pairBoost(a, b);
+    if (boost) for (const c of cats) if (c.key !== 'day' && c.key !== 'star') c.score = clamp(c.score + boost);
     const total = clamp(cats.reduce((sum, c) => sum + c.score * c.weight, 0) / cats.reduce((sum, c) => sum + c.weight, 0));
     const grade = total >= 80 ? '천생연분' : total >= 68 ? '잘 맞는 사이' : total >= 55 ? '노력하면 좋은 사이' : '서로 이해가 필요한 사이';
     const sorted = cats.slice().sort((x, y) => y.score - x.score);
