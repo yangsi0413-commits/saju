@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>저장 기록 관리</title>
+  <style>
+    :root { color-scheme: light; --bg: #f7f6f2; --surface: #fff; --ink: #1d1b18; --ink-2: #52514e; --line: #e1e0d9; --accent: #7a4b2a; --bad: #b02a2a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif; }
+    main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 20px; margin: 8px 0 16px; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    form { display: grid; gap: 10px; max-width: 360px; }
+    label { display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
+    input { font: inherit; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; }
+    button, .btn { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; text-decoration: none; white-space: nowrap; }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-size: 15px; padding: 10px; }
+    button.danger { color: var(--bad); }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .toolbar input { flex: 1; min-width: 160px; }
+    .muted { color: var(--ink-2); font-size: 13px; }
+    .error { color: var(--bad); font-size: 14px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; white-space: nowrap; }
+    th { color: var(--ink-2); font-weight: 600; position: sticky; top: 0; background: var(--surface); }
+    td.hanja { font-family: "Noto Serif KR", serif; letter-spacing: 1px; }
+    .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>저장 기록 관리</h1>
+    <div id="view"></div>
+  </main>
+
+  <script src="src/config.js"></script>
+  <script src="src/ui/storage.js"></script>
+  <script>
+    const view = document.getElementById('view');
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const SESSION = 'saju.admin';
+    // 로그인 정보는 탭을 닫으면 사라지도록 sessionStorage에만 둔다
+    const loadSession = () => { try { return JSON.parse(sessionStorage.getItem(SESSION)); } catch { return null; } };
+    const saveSession = (s) => { try { s ? sessionStorage.setItem(SESSION, JSON.stringify(s)) : sessionStorage.removeItem(SESSION); } catch { /* 저장 불가 */ } };
+    const st = { session: loadSession(), rows: [], offset: 0, limit: 50, search: '' };
+
+    async function token() {
+      if (st.session && Date.now() > st.session.expiresAt - 60000) {
+        try { st.session = await SajuStore.refresh(st.session.refresh); saveSession(st.session); } catch { st.session = null; saveSession(null); }
+      }
+      return st.session?.token;
+    }
+
+    function renderLogin(err = '') {
+      if (!SajuStore.cfg().supabaseUrl) {
+        view.innerHTML = `<div class="card"><p>저장 서버가 아직 설정되지 않았어요. <code>src/config.js</code>에 Supabase 주소와 anon 키를 넣어 주세요. 자세한 방법은 README의 "저장 서버 설정"을 보세요.</p></div>`;
+        return;
+      }
+      view.innerHTML = `
+        <div class="card">
+          <form id="login">
+            <label>이메일 <input name="email" type="email" required autocomplete="username"></label>
+            <label>비밀번호 <input name="password" type="password" required autocomplete="current-password"></label>
+            <button class="primary">로그인</button>
+            <p class="error">${esc(err)}</p>
+            <p class="muted">Supabase에서 만든 관리자 계정으로 로그인하세요. 관리자로 등록된 계정만 기록을 볼 수 있어요.</p>
+          </form>
+        </div>`;
+      document.getElementById('login').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          st.session = await SajuStore.signIn(e.target.email.value, e.target.password.value);
+          saveSession(st.session);
+          load();
+        } catch (er) { renderLogin(`로그인 실패: ${er.message}`); }
+      });
+    }
+
+    const birth = (r) => `${r.calendar === 'lunar' ? '음 ' : ''}${r.birth_year}.${r.birth_month}.${r.birth_day}${r.is_leap_month ? '(윤)' : ''} ${r.birth_hour == null ? '시간 모름' : `${String(r.birth_hour).padStart(2, '0')}:${String(r.birth_minute ?? 0).padStart(2, '0')}`}`;
+
+    function renderTable(msg = '') {
+      const rows = st.rows;
+      view.innerHTML = `
+        <div class="card">
+          <div class="toolbar">
+            <span class="muted">${esc(st.session.email || '')} 로그인됨</span>
+            <form id="search" style="display:flex;gap:8px;flex:1;max-width:none"><input name="q" placeholder="이름 검색" value="${esc(st.search)}"><button>검색</button></form>
+            <button id="csv">CSV 내보내기</button>
+            <button id="purge" class="danger">보관 기간 지난 기록 정리</button>
+            <button id="logout">로그아웃</button>
+          </div>
+          ${msg ? `<p class="muted">${esc(msg)}</p>` : ''}
+          <div class="table-wrap"><table>
+            <thead><tr><th>저장일</th><th>이름</th><th>성별</th><th>생년월일시</th><th>출생지</th><th>여덟 글자</th><th>일간</th><th>신강약</th><th>용신(방법)</th><th>격국</th><th>배우자운</th><th>성향</th><th>메뉴</th><th></th></tr></thead>
+            <tbody>${rows.length ? rows.map(r => {
+              const x = r.result || {};
+              const link = `index.html?profile=${SajuStore.encodeProfile(SajuStore.toProfile(r))}&method=${encodeURIComponent(methodId(x.yongsin?.method))}#/result/saju`;
+              return `<tr>
+                <td>${esc(new Date(r.created_at).toLocaleString('ko-KR'))}</td>
+                <td>${esc(r.name || '-')}</td>
+                <td>${r.gender === 'M' ? '남' : '여'}</td>
+                <td>${esc(birth(r))}</td>
+                <td>${esc(r.place || '-')}</td>
+                <td class="hanja">${esc((x.pillars || []).map(v => v || '--').join(' '))}</td>
+                <td>${esc(x.dayMaster || '')}</td>
+                <td>${esc(x.strength ? `${x.strength.level} ${x.strength.score}` : '')}</td>
+                <td>${esc(x.yongsin ? `${x.yongsin.yongsin} (${x.yongsin.method})` : '')}</td>
+                <td>${esc(x.gyeokguk || '')}</td>
+                <td>${esc(x.spouse ? `${x.spouse.index}점` : '')}</td>
+                <td>${esc(x.persona || '')}</td>
+                <td>${esc(r.menu || '')}</td>
+                <td><a class="btn" href="${esc(link)}" target="_blank" rel="noopener">풀이 보기</a> <button class="danger" data-del="${esc(r.id)}">삭제</button></td>
+              </tr>`;
+            }).join('') : '<tr><td colspan="14" class="muted">저장된 기록이 없어요.</td></tr>'}</tbody>
+          </table></div>
+          <div class="pager">
+            <button id="prev" ${st.offset ? '' : 'disabled'}>이전</button>
+            <span class="muted">${st.offset + 1}~${st.offset + rows.length}</span>
+            <button id="next" ${rows.length < st.limit ? 'disabled' : ''}>다음</button>
+          </div>
+        </div>`;
+      document.getElementById('search').addEventListener('submit', (e) => { e.preventDefault(); st.search = e.target.q.value.trim(); st.offset = 0; load(); });
+      document.getElementById('prev').addEventListener('click', () => { st.offset = Math.max(0, st.offset - st.limit); load(); });
+      document.getElementById('next').addEventListener('click', () => { st.offset += st.limit; load(); });
+      document.getElementById('logout').addEventListener('click', () => { st.session = null; saveSession(null); renderLogin(); });
+      document.getElementById('csv').addEventListener('click', exportCsv);
+      document.getElementById('purge').addEventListener('click', async () => {
+        if (!confirm(`보관 기간(${SajuStore.cfg().retention || '1년'})이 지난 기록을 모두 삭제할까요?`)) return;
+        try { const n = await SajuStore.purge(await token()); load(`${n}건을 정리했어요.`); } catch (er) { load(`정리 실패: ${er.message}`); }
+      });
+      view.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+        if (!confirm('이 기록을 삭제할까요? 되돌릴 수 없어요.')) return;
+        try { await SajuStore.removeById(await token(), b.dataset.del); load('삭제했어요.'); } catch (er) { load(`삭제 실패: ${er.message}`); }
+      }));
+    }
+
+    const METHOD_IDS = { 종합: 'consensus', 억부법: 'eokbu', 조후법: 'johu', 격국법: 'gyeok', 통관법: 'tonggwan', 병약법: 'byeongyak' };
+    const methodId = (name) => METHOD_IDS[name] || 'consensus';
+
+    function exportCsv() {
+      const head = ['저장일', '이름', '성별', '달력', '년', '월', '일', '시', '분', '윤달', '출생지', '시간보정', '자시', '여덟글자', '일간', '신강약', '신강약점수', '용신', '해석방법', '격국', '배우자운', '성향', '메뉴'];
+      const rows = st.rows.map(r => { const x = r.result || {}; return [r.created_at, r.name, r.gender, r.calendar, r.birth_year, r.birth_month, r.birth_day, r.birth_hour, r.birth_minute, r.is_leap_month, r.place, r.time_mode, r.zi_hour, (x.pillars || []).join(' '), x.dayMaster, x.strength?.level, x.strength?.score, x.yongsin?.yongsin, x.yongsin?.method, x.gyeokguk, x.spouse?.index, x.persona, r.menu]; });
+      const csv = [head, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
+      a.download = `saju-records-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    async function load(msg = '') {
+      const t = await token();
+      if (!t) return renderLogin();
+      try {
+        st.rows = await SajuStore.list(t, { limit: st.limit, offset: st.offset, search: st.search });
+        renderTable(msg || (st.rows.length === 0 && !st.offset ? '관리자로 등록되지 않은 계정이면 기록이 보이지 않아요(README의 관리자 등록 참고).' : ''));
+      } catch (er) {
+        if (/JWT|expired|401/i.test(er.message)) { st.session = null; saveSession(null); return renderLogin('로그인이 만료됐어요. 다시 로그인해 주세요.'); }
+        view.innerHTML = `<div class="card"><p class="error">불러오지 못했어요: ${esc(er.message)}</p></div>`;
+      }
+    }
+
+    st.session ? load() : renderLogin();
+  </script>
+</body>
+</html>

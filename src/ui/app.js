@@ -27,7 +27,9 @@
   ];
   const params = new URLSearchParams(location.search);
   // ?demo: 미리보기용 예시 인물로 채우고 저장하지 않는다
-  const DEMO = params.has('demo');
+  // ?profile=…: 관리자 페이지에서 저장된 기록을 다시 열 때. 이 기기에 저장하지 않는다
+  const SHARED = (() => { try { return params.get('profile') ? SajuStore.decodeProfile(params.get('profile')) : null; } catch { return null; } })();
+  const DEMO = params.has('demo') || !!SHARED;
   const DEMO_PROFILES = [
     { name: '지민', gender: 'F', calendar: 'solar', isLeapMonth: false, year: 1990, month: 5, day: 15, hour: 10, minute: 30, place: '서울', timeMode: 'solar', longitude: 127.0, ziHour: 'next' },
     { name: '현우', gender: 'M', calendar: 'solar', isLeapMonth: false, year: 1988, month: 11, day: 3, hour: 7, minute: 0, place: '부산', timeMode: 'solar', longitude: 129.1, ziHour: 'next' },
@@ -36,7 +38,7 @@
 
   const METHOD_KEY = 'saju.method';
   const loadMethod = () => { try { return localStorage.getItem(METHOD_KEY) || 'consensus'; } catch { return 'consensus'; } };
-  const state = { profiles: DEMO ? DEMO_PROFILES : loadProfiles(), year: THIS_YEAR, method: params.get('method') || loadMethod(), route: '' };
+  const state = { profiles: SHARED ? [SHARED] : DEMO ? DEMO_PROFILES : loadProfiles(), saved: null, year: THIS_YEAR, method: params.get('method') || loadMethod(), route: '' };
   state.qa = { sig: '', items: [], ctx: null };
 
   // 사주 계산 + 고른 해석 방법(학파)의 용신 적용
@@ -225,7 +227,7 @@
             <span class="menu-desc">${esc(m.desc)}</span>
           </a>`).join('')}
       </div>
-      <p class="notice">입력한 정보는 이 기기 안에서만 계산되며 서버로 전송되지 않습니다.</p>`;
+      <p class="notice">${privacyNotice()}</p>`;
   }
 
   // ============================================================
@@ -331,9 +333,10 @@
               ${[THIS_YEAR, THIS_YEAR + 1].map(y => `<label><input type="radio" name="year" value="${y}" ${y === state.year ? 'checked' : ''}> ${y}년</label>`).join('')}
             </div>
           </fieldset>` : ''}
+        ${consentBlock()}
         <p class="error" id="form-error" role="alert"></p>
         <button class="primary">분석하기</button>
-        <p class="notice">입력한 정보는 이 기기에만 저장되며 서버로 전송되지 않습니다.</p>
+        <p class="notice">${privacyNotice()}</p>
       </form>`;
 
     const compareBox = document.getElementById('compare-two');
@@ -353,7 +356,10 @@
         if (yr) state.year = Number(yr.value);
         saveProfiles(state.profiles);
         form.dataset.busy = '1';
+        const consent = document.getElementById('consent');
+        const saving = consent?.checked && SajuStore.enabled() && !DEMO ? saveRecord(people[0], m.id) : null;
         await playLoading(charts[0], m);
+        if (saving) await saving;
         delete form.dataset.busy;
         go(`#/result/${m.id}`);
       } catch (err) {
@@ -375,6 +381,7 @@
     const body = { saju: resultSaju, persona: resultPersona, life: resultLife, today: resultToday, year: resultYear, daeun: resultDaeun, compat: resultCompat }[menuId](s);
     app.innerHTML = `
       <a class="back" href="#/">← 운세 선택</a>
+      ${savedNotice()}
       ${methodBar(s, menuId === 'saju')}
       ${body}
       ${qaSection(menuId)}
@@ -854,6 +861,8 @@
       dialog.showModal();
       return;
     }
+    const del = e.target.closest('[data-del-token]');
+    if (del) { if (confirm('이 기록을 서버에서 삭제할까요?')) deleteByToken(del.dataset.delToken); return; }
     const ask = e.target.closest('[data-ask]');
     if (ask) { askQuestion(ask.dataset.ask); return; }
     if (e.target.closest('[data-qa-clear]')) { state.qa.items = []; redrawThread(); return; }
@@ -871,6 +880,8 @@
     if (a) { e.preventDefault(); document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' }); }
   });
   document.addEventListener('submit', (e) => {
+    const delForm = e.target.closest('[data-delete-form]');
+    if (delForm) { e.preventDefault(); deleteByToken(delForm.token.value); return; }
     const qaForm = e.target.closest('[data-qa-form]');
     if (qaForm) {
       e.preventDefault();
@@ -903,6 +914,88 @@
 
   dialog.addEventListener('click', (e) => { if (e.target === dialog || e.target.closest('[data-close]')) dialog.close(); });
 
+  // ============================================================
+  // 저장 동의 · 저장 · 삭제
+  // ============================================================
+
+  const SAVED_KEY = 'saju.savedTokens';
+  const savedTokens = () => { try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; } catch { return []; } };
+  const setSavedTokens = (l) => { try { localStorage.setItem(SAVED_KEY, JSON.stringify(l)); } catch { /* 저장 불가 */ } };
+
+  function privacyNotice() {
+    return SajuStore.enabled()
+      ? '입력한 정보는 이 기기에서 계산되며, 아래에서 저장에 동의한 경우에만 서버에 보관됩니다. <a href="privacy.html">개인정보 처리방침</a>'
+      : '입력한 정보는 이 기기 안에서만 계산되며 서버로 전송되지 않습니다.';
+  }
+
+  function consentBlock() {
+    if (!SajuStore.enabled() || DEMO) return '';
+    const c = SajuStore.cfg();
+    return `
+      <fieldset class="card consent">
+        <label class="check"><input type="checkbox" id="consent"> <span><b>(선택)</b> 내 사주 정보 저장에 동의합니다</span></label>
+        <details class="why">
+          <summary>무엇을, 왜 저장하나요?</summary>
+          <ul>
+            <li>목적: 풀이 정확도 개선과 서비스 연구</li>
+            <li>항목: 이름(입력한 경우), 성별, 생년월일시, 출생지·시간 보정 설정, 풀이 결과 요약(여덟 글자, 용신, 신강약 등). 궁합에 입력한 상대방 정보는 저장하지 않습니다.</li>
+            <li>보관 기간: ${esc(c.retention || '1년')} 후 삭제</li>
+            <li>동의하지 않아도 모든 풀이를 똑같이 이용할 수 있습니다.</li>
+            <li>저장 후 받는 삭제 코드로 언제든 직접 삭제할 수 있고, 운영자(${esc(c.operator.contact)})에게 열람·삭제를 요청할 수 있습니다.</li>
+          </ul>
+          <p class="small"><a href="privacy.html">개인정보 처리방침 전문 보기</a></p>
+        </details>
+      </fieldset>`;
+  }
+
+  async function saveRecord(profile, menu) {
+    try {
+      const s = analyze(profile);
+      const sp = I.analyzeSpouse(s);
+      const enriched = { ...s, spouse: { index: sp.index, grade: sp.grade }, personaType: I.readPersona(s).typeName };
+      const token = await SajuStore.save(SajuStore.buildRecord(profile, enriched, menu, s.yongsin.method));
+      state.saved = { ok: true, token };
+      setSavedTokens([{ token, name: profile.name, at: new Date().toISOString().slice(0, 10) }, ...savedTokens()].slice(0, 20));
+    } catch (err) {
+      state.saved = { ok: false, error: err.message };
+    }
+  }
+
+  function savedNotice() {
+    const sv = state.saved;
+    if (!sv) return '';
+    state.saved = null; // 한 번만 보여 준다
+    return sv.ok
+      ? `<section class="card saved-note"><p><b>저장했어요.</b> 삭제 코드: <code>${esc(sv.token)}</code></p><p class="muted small">이 코드로 언제든 <a href="#/delete">내 기록 삭제</a>를 할 수 있어요. 이 기기에도 코드를 기억해 둡니다.</p></section>`
+      : `<section class="card saved-note"><p class="error">저장하지 못했어요: ${esc(sv.error)}</p><p class="muted small">풀이는 그대로 볼 수 있어요.</p></section>`;
+  }
+
+  function renderDelete() {
+    const list = savedTokens();
+    app.innerHTML = `
+      <a class="back" href="#/">← 운세 선택</a>
+      <section class="hero small"><h1>내 저장 기록 삭제</h1><p class="muted">저장할 때 받은 삭제 코드로 기록을 지울 수 있어요.</p></section>
+      ${list.length ? `<section class="card"><h2>이 기기에서 저장한 기록</h2><ul class="saved-list">${list.map(x => `<li>${esc(x.at)} · ${esc(x.name || '이름 없음')} <button type="button" class="chip" data-del-token="${esc(x.token)}">삭제</button></li>`).join('')}</ul></section>` : ''}
+      <form class="card" data-delete-form>
+        <label>삭제 코드 <input name="token" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" pattern="[0-9a-fA-F-]{36}"></label>
+        <button class="primary">삭제하기</button>
+        <p class="notice" id="delete-msg" role="status"></p>
+      </form>
+      <p class="notice">코드를 잃어버렸다면 운영자(${esc(SajuStore.cfg().operator?.contact || '-')})에게 요청해 주세요.</p>`;
+  }
+
+  async function deleteByToken(token) {
+    const msg = document.getElementById('delete-msg');
+    try {
+      const n = await SajuStore.remove(token.trim());
+      setSavedTokens(savedTokens().filter(x => x.token !== token.trim()));
+      if (msg) msg.textContent = n ? '삭제했어요.' : '해당 코드의 기록이 없어요(이미 삭제되었을 수 있어요).';
+      if (n) renderDelete();
+    } catch (err) {
+      if (msg) msg.textContent = `삭제하지 못했어요: ${err.message}`;
+    }
+  }
+
   function go(hash) {
     if (location.hash === hash) route();
     else location.hash = hash;
@@ -913,6 +1006,7 @@
     if (page === 'input') renderInput(arg);
     else if (page === 'result') renderResult(arg);
     else if (page === 'learn') renderLearn();
+    else if (page === 'delete') renderDelete();
     else renderHome();
     if (page !== 'result') window.scrollTo(0, 0);
   }

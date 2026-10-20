@@ -26,17 +26,23 @@ saju/
 │   │   ├── methods.js      해석 방법(학파): 억부·조후·격국·통관·병약 용신 + 신살·물상 관점 + 종합(투표)
 │   │   ├── interpret.js    풀이 엔진: 계산 결과 → 문장 + 근거(why) + 용어 사전
 │   │   └── qa.js           사주 Q&A: 질문의 주제·시기를 읽고 풀이 데이터로 답변
-│   └── ui/
-│       ├── app.js          화면 흐름(해시 라우팅): 홈 → 입력 → 결과(맨 끝에 Q&A), 기초 배우기
-│       ├── style.css       기본 스타일 (구조·레이아웃, 모든 색·글꼴은 CSS 변수)
-│       └── themes.css      디자인 테마 5종 (변수와 장식만 덮어씀)
+│   ├── ui/
+│   │   ├── app.js          화면 흐름(해시 라우팅): 홈 → 입력 → 결과(맨 끝에 Q&A), 기초 배우기
+│   │   ├── style.css       기본 스타일 (구조·레이아웃, 모든 색·글꼴은 CSS 변수)
+│   │   ├── themes.css      디자인 테마 5종 (변수와 장식만 덮어씀)
+│   │   └── storage.js      저장 서버 연동: 동의 저장·삭제 코드·관리자 조회
+│   └── config.js           저장 서버(Supabase) 주소·anon 키·운영자 연락처 (비어 있으면 저장 기능 꺼짐)
+├── admin.html              관리자 페이지: 로그인 → 저장 기록 열람·검색·풀이 보기·삭제·CSV
+├── privacy.html            개인정보 처리방침
+├── supabase/schema.sql     저장 서버 테이블·행 단위 보안·함수
 ├── preview.html            5가지 디자인을 휴대폰 화면으로 나란히 비교
 └── test/
     ├── data.test.js        지식 DB 모양·대표 값 검증
     ├── saju.test.js        lunar-javascript·Intl과 교차 검증, 알려진 사례 검증
     ├── interpret.test.js   무작위 입력으로 모든 풀이 생성 → 빈 값·없는 용어·예외 검사
     ├── qa.test.js          무작위 인물 × 질문 26개로 Q&A 답변 검사
-    └── consistency.test.js 점수가 20점 이상 다른데 같은 문장이 나오는지(점수-해석 일치) 검사
+    ├── consistency.test.js 점수가 20점 이상 다른데 같은 문장이 나오는지(점수-해석 일치) 검사
+    └── storage.test.js     저장 레코드가 스키마 제약을 지키는지, 상대방 정보가 빠지는지, 풀이 보기 링크가 같은 사주로 열리는지
 ```
 
 의존 방향은 `ui → core/interpret, core/methods → core/saju → lunar-javascript` 한 방향입니다. 스크립트 로드 순서: lunar → saju → data/myeongri → methods → interpret → qa → app.
@@ -114,6 +120,28 @@ saju/
 - 질문에서 주제(결혼·연애·어울리는 상대·궁합·사업·직장·재물·시험·건강·이사·자녀·인간관계·성격·행운·대운·해석 방법·오늘·힘든/좋은 시기·달·한 해)와 시점(연도, 올해/내년/작년, N살, N년 후, N월, 이번 달)과 형태(언제? / 해도 될까? / 과거)를 읽습니다.
 - 주제마다 관련 십성(예: 직장=관성·식상, 재물=재성, 연애=남성 재성·여성 관성)이 그해 들어오는지, 그 기운이 용신·희신인지, 충·합·역마·도화가 있는지로 해마다 점수를 매겨 결론 → 근거 → 조언으로 답합니다.
 - 모든 계산은 브라우저 안에서 이루어지며 외부로 전송되지 않습니다.
+
+## 저장 서버 설정 (선택)
+
+방문자가 **동의한 경우에만** 본인의 입력 정보와 핵심 결과(여덟 글자, 일간, 신강약, 용신, 격국, 배우자운 지수, 성향)를 저장하고, 운영자가 `admin.html`에서 열람합니다. 궁합에 입력한 상대방 정보는 저장하지 않습니다. `src/config.js`가 비어 있으면 저장 기능과 동의 체크박스가 나타나지 않습니다.
+
+1. [supabase.com](https://supabase.com)에서 프로젝트를 만듭니다(무료 요금제로 충분). 지역은 Seoul(ap-northeast-2)을 권장합니다.
+2. **SQL Editor**에 `supabase/schema.sql` 전체를 붙여 넣고 Run.
+3. **Authentication → Sign In / Providers**에서 *Allow new users to sign up*을 끕니다(아무나 가입하지 못하게).
+4. **Authentication → Users → Add user**로 관리자 계정(이메일·비밀번호)을 만들고, 그 사용자의 **User UID**를 복사합니다.
+5. SQL Editor에서 관리자로 등록합니다.
+   ```sql
+   insert into public.admins (user_id) values ('복사한-User-UID');
+   ```
+6. **Project Settings → API**의 Project URL과 `anon` `public` 키를 `src/config.js`에 넣고, 운영자 이름과 연락처(삭제·열람 요청을 받을 이메일)를 채웁니다. **`service_role` 키는 절대 넣지 마세요**(테스트가 막습니다).
+7. 커밋·배포한 뒤 `https://<사이트 주소>/admin.html`에서 로그인합니다.
+
+보안 구조
+- 방문자(anon)는 표를 직접 읽거나 쓸 수 없고, `save_saju_record` 함수로만 저장합니다. 동의 버전이 없으면 거부됩니다.
+- 저장하면 삭제 코드가 화면에 표시되고 그 기기에 기억됩니다. `#/delete` 페이지에서 언제든 직접 삭제할 수 있습니다.
+- `admins` 표에 등록된 로그인 계정만 기록을 읽고 지울 수 있습니다(행 단위 보안).
+- 보관 기간(1년)이 지난 기록은 관리자 페이지의 "보관 기간 지난 기록 정리"로 지웁니다. 자동으로 하려면 Supabase의 pg_cron에서 `delete from public.saju_records where created_at < now() - interval '1 year'`를 매일 실행하세요.
+- 동의 안내문을 바꾸면 `config.js`의 `consentVersion` 날짜를 올리세요. 기록마다 어떤 안내문에 동의했는지 남습니다.
 
 ## 디자인 테마
 
