@@ -22,11 +22,11 @@
 
   const TOPICS = [
     { id: 'marriage', label: '결혼', kw: ['결혼', '배우자', '신랑', '신부', '시집', '장가', '혼인', '남편', '아내', '와이프', '부부'] },
-    { id: 'love', label: '연애', kw: ['연애', '애인', '남자친구', '여자친구', '남친', '여친', '썸', '인연', '이성', '소개팅', '재회', '헤어', '고백', '짝사랑', '솔로'] },
+    { id: 'love', label: '연애', kw: ['연애', '애인', '남자친구', '여자친구', '남친', '여친', '썸', '인연', '이성', '소개팅', '재회', '헤어', '고백', '짝사랑', '솔로', '데이트'] },
     { id: 'ideal', label: '어울리는 상대', kw: ['어떤 사람과', '어떤 사람이랑', '어떤 사람하고', '이상형', '어떤 상대', '잘 맞는 사람', '어울리는 사람', '어떤 사람을 만나', '무슨 띠'] },
     { id: 'compat', label: '궁합', kw: ['궁합', '그 사람', '상대', '잘 맞', '우리 둘', '두 사람', '누가 더'] },
     { id: 'business', label: '사업·창업', kw: ['사업', '창업', '장사', '가게', '개업', '동업', '프리랜서', '자영업'] },
-    { id: 'career', label: '직장·커리어', kw: ['이직', '직장', '회사', '취업', '취직', '승진', '퇴사', '커리어', '직업', '적성', '업무', '전직', '진로', '일자리', '면접'] },
+    { id: 'career', label: '직장·커리어', kw: ['이직', '직장', '회사', '취업', '취직', '승진', '퇴사', '커리어', '직업', '적성', '업무', '전직', '진로', '일자리', '면접', '미팅', '회의', '발표', '계약'] },
     { id: 'money', label: '재물·돈', kw: ['돈', '재물', '재테크', '투자', '주식', '코인', '부동산', '집 사', '월급', '연봉', '수입', '저축', '빚', '대출', '로또', '금전', '부자', '재산'] },
     { id: 'exam', label: '시험·학업', kw: ['시험', '합격', '공부', '자격증', '수능', '공무원', '고시', '학업', '대학', '입시', '학교', '성적'] },
     { id: 'health', label: '건강', kw: ['건강', '아프', '병원', '질병', '몸이', '수술', '다이어트', '우울', '불면', '피곤', '체력'] },
@@ -37,7 +37,7 @@
     { id: 'lucky', label: '행운·개운', kw: ['행운', '색깔', '무슨 색', '숫자', '방향', '개운', '용신', '필요한 기운', '좋은 기운', '보완'] },
     { id: 'daeun', label: '대운', kw: ['대운', '10년 운', '십년'] },
     { id: 'method', label: '해석 방법', kw: ['학파', '해석 방법', '억부', '조후', '격국', '통관', '병약', '물상', '왜 다르'] },
-    { id: 'today', label: '오늘', kw: ['오늘', '내일', '일진'] },
+    { id: 'today', label: '오늘', kw: ['오늘', '내일', '모레', '어제', '일진'] },
     { id: 'hard', label: '힘든 시기', kw: ['힘든', '안 좋', '나쁜 시기', '조심', '위기', '고비', '불운', '최악', '안풀', '안 풀'] },
     { id: 'good', label: '좋은 시기', kw: ['좋은 시기', '잘 풀', '기회', '언제 좋', '최고', '상승', '대박', '성공', '전성기', '풀릴'] },
     { id: 'month', label: '달별 운', kw: ['이번 달', '다음 달', '몇 월', '월별', '달에'] },
@@ -65,7 +65,7 @@
     const birth = s.birth.solarDate.year;
     const years = [];
     for (const m of q.matchAll(/(19|20)\d{2}(?=\s*년|\D|$)/g)) years.push(Number(m[0]));
-    if (/내후년/.test(q)) years.push(Y + 2);
+    if (/내후년|후년|내내년/.test(q)) years.push(Y + 2);
     else if (/내년|다음 해/.test(q)) years.push(Y + 1);
     if (/재작년/.test(q)) years.push(Y - 2);
     else if (/작년|지난해/.test(q)) years.push(Y - 1);
@@ -77,9 +77,11 @@
     if (mm && Number(mm[1]) >= 1 && Number(mm[1]) <= 12) month = Number(mm[1]);
     if (/이번 달|이달/.test(q)) month = now.getMonth() + 1;
     if (/다음 달/.test(q)) month = (now.getMonth() + 1) % 12 + 1;
+    // 하루 단위: 오늘 0, 내일 1, 모레 2, 어제 -1 (없으면 null)
+    const day = /모레/.test(q) ? 2 : /내일/.test(q) ? 1 : /어제/.test(q) ? -1 : /오늘/.test(q) ? 0 : null;
     const when = /언제|몇 살|몇 년|시기|때가|타이밍|몇월|몇 월/.test(q);
     const past = /과거|예전|그때|지났|있었|했었|였을|었을|힘들었|좋았/.test(q) || years.some(y => y < Y);
-    return { raw: q, years: [...new Set(years)].filter(y => y >= birth && y <= birth + 100).sort(), month, when, past };
+    return { raw: q, years: [...new Set(years)].filter(y => y >= birth && y <= birth + 100).sort(), month, day, when, past };
   }
 
   // ============================================================
@@ -313,18 +315,26 @@
     const god = mo.stemTenGod;
     return {
       topic: 'month', title: `${y}년 ${m}월 운세`, conclusion: `${y}년 ${m}월(${mo.jie} 이후, ${mo.hanja})은 ${sc.score}점 — ${sc.grade}입니다.`,
-      points: [`흐름: ${I.TEN_GOD_INFO[god].short}`, `${god}: ${I.TEN_GOD_INFO[god].day}`, ...mo.relations.slice(0, 3).map(r => `${r.name}: ${r.type === '충' ? '변동·마찰' : ['육합', '삼합', '반합', '천간합'].includes(r.type) ? '화합·인연' : '작은 마찰'}`)],
+      points: [...(FOCUS[t.focus] ? focusFirst(I.categories(s, god, mo.stemElement, sc.score), t.focus).slice(0, 1).map(([k, v]) => `${k}: ${v}`) : []),
+        `흐름: ${I.TEN_GOD_INFO[god].short}`, `${god}: ${I.TEN_GOD_INFO[god].day}`, ...mo.relations.slice(0, 3).map(r => `${r.name}: ${r.type === '충' ? '변동·마찰' : ['육합', '삼합', '반합', '천간합'].includes(r.type) ? '화합·인연' : '작은 마찰'}`)],
       advice: [sc.score >= 65 ? '이 달에 중요한 약속이나 시작을 배치해도 좋습니다.' : sc.score < 50 ? '이 달에는 큰 결정을 미루고 컨디션 관리에 신경 쓰세요.' : '평소 페이스를 유지하면 무난합니다.'],
       why: [`달은 절기 기준이라 ${mo.jie}(${mo.startDate.slice(0, 10)})부터 ${mo.hanja} 달입니다.`, ...sc.why],
       links: [{ menu: 'year', label: '월별 운세 보기' }],
     };
   }
 
-  function answerToday(s, now) {
-    const r = I.readToday(s, now);
+  // 질문 주제 → 하루·한 달 풀이에서 먼저 보여 줄 분야
+  const FOCUS = { career: '일·학업', business: '일·학업', exam: '일·학업', money: '재물', love: '연애·관계', marriage: '연애·관계', people: '연애·관계', health: '건강' };
+  const focusFirst = (cats, id) => (FOCUS[id] ? [...cats.filter(([k]) => k === FOCUS[id]), ...cats.filter(([k]) => k !== FOCUS[id])] : cats);
+  const DAY_WORD = { '-1': '어제', 0: '오늘', 1: '내일', 2: '모레' };
+
+  function answerToday(s, now, offset = 0, focus = null) {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    const r = I.readToday(s, date);
+    const word = DAY_WORD[offset] || '오늘';
     return {
-      topic: 'today', title: '오늘의 운세', conclusion: `오늘(${r.pillar.hanja})은 ${r.score.score}점 — ${plain(r.sections[0].lead)}`,
-      points: r.categories.map(([k, v]) => `${k}: ${v}`),
+      topic: 'today', title: `${word}의 운세 (${date.getMonth() + 1}월 ${date.getDate()}일)`, conclusion: `${word}(${r.pillar.hanja})은 ${r.score.score}점 — ${plain(r.sections[0].lead)}`,
+      points: focusFirst(r.categories, focus).map(([k, v]) => `${k}: ${v}`),
       advice: [`행운의 색 ${r.lucky.color}, 방향 ${r.lucky.direction}`],
       why: r.sections[0].why.map(plain),
       links: [{ menu: 'today', label: '오늘의 운세 보기' }],
@@ -454,7 +464,12 @@
     const id = topic?.id;
     let out;
     const aboutUs = /우리|둘이|두 사람|그 사람|상대|같이|함께|남자친구랑|여자친구랑/.test(q);
-    if ((id === 'marriage' || id === 'love') && aboutUs && (ctx.partners || []).length) out = answerCompat(s, ctx.partners, now, q);
+    const WHOLE = ['personality', 'ideal', 'lucky', 'method', 'daeun', 'compat'];
+    // 특정한 날(오늘·내일·모레·어제)이나 달(7월, 다음 달)을 콕 집어 물으면, 주제가 있어도 그날·그달 풀이로 답한다
+    const dayFocus = detectTopic(q.replace(/오늘|내일|모레|어제|일진/g, ''))?.id;
+    if (t.day != null && !t.when && !WHOLE.includes(id) && !aboutUs) out = answerToday(s, now, t.day, dayFocus);
+    else if (t.month && !t.when && id && FOCUS[id] && !aboutUs) out = answerMonth(s, { ...t, focus: id }, Y, now);
+    else if ((id === 'marriage' || id === 'love') && aboutUs && (ctx.partners || []).length) out = answerCompat(s, ctx.partners, now, q);
     else if (id === 'love' || id === 'marriage') out = answerSpouse(s, id, t, Y);
     else if (['career', 'business', 'money', 'exam', 'children', 'people', 'move'].includes(id)) out = answerTopic(s, id, t, Y);
     else if (id === 'health') out = answerHealth(s, t, Y);
@@ -463,7 +478,7 @@
     else if (id === 'lucky') out = answerLucky(s);
     else if (id === 'daeun') out = answerDaeun(s, Y);
     else if (id === 'method') out = answerMethod(s);
-    else if (id === 'today') out = answerToday(s, now);
+    else if (id === 'today') out = answerToday(s, now, t.day ?? 0);
     else if (id === 'compat') out = answerCompat(s, ctx.partners || [], now);
     else if (id === 'hard' || id === 'good') out = answerPeriods(s, id, t, now);
     else if (id === 'month' || (t.month && !id)) out = answerMonth(s, t, Y, now);

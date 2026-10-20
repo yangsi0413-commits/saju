@@ -24,14 +24,16 @@
   const READ = { 木: '목', 火: '화', 土: '토', 金: '금', 水: '수' };
   E.STEMS_HANJA.forEach((h, i) => { READ[h] = E.STEMS[i]; });
   E.BRANCHES_HANJA.forEach((h, i) => { READ[h] = E.BRANCHES[i]; });
-  const batchim = (w) => {
+  // 마지막 글자의 받침 번호 (0 = 받침 없음, 8 = ㄹ)
+  const jong = (w) => {
     const str = w.replace(/\([^)]*\)$/, '');
     const c = (READ[str[str.length - 1]] || str[str.length - 1]).charCodeAt(0);
-    return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 !== 0;
+    return c >= 0xAC00 && c <= 0xD7A3 ? (c - 0xAC00) % 28 : 0;
   };
+  const batchim = (w) => jong(w) !== 0;
   const PAIR = { 은: ['은', '는'], 는: ['은', '는'], 이: ['이', '가'], 가: ['이', '가'], 을: ['을', '를'], 를: ['을', '를'], 과: ['과', '와'], 와: ['과', '와'] };
-  const fix = (t) => t.replace(/([가-힣]+\([^)]*\)|[\u4e00-\u9fff]|(?<![가-힣])[목화토금수])(은|는|이|가|을|를|과|와)(?=[\s,.!?:)]|$)/g,
-    (m, w, j) => w + PAIR[j][batchim(w) ? 0 : 1]);
+  const fix = (t) => t.replace(/([가-힣]+\([^)]*\)|[\u4e00-\u9fff]|(?<![가-힣])[목화토금수])(으로|로|은|는|이|가|을|를|과|와)(?=[\s,.!?:)]|$)/g,
+    (m, w, j) => w + (j === '으로' || j === '로' ? (jong(w) === 0 || jong(w) === 8 ? '로' : '으로') : PAIR[j][batchim(w) ? 0 : 1]));
   const fixAll = (r) => ({ ...r, verdict: fix(r.verdict), paragraphs: r.paragraphs.map(fix), why: r.why.map(fix) });
 
   const METHOD_INFO = {
@@ -434,7 +436,7 @@
     const pick = METHOD_INFO[id]?.kind === 'yongsin' ? m.byId[id] : m.byId.consensus;
     const set = yongsinSet(base, pick.yongsin, {
       method: pick.name, methodId: pick.id, applicable: pick.applicable,
-      reason: pick.paragraphs[pick.paragraphs.length - 1].replace(/\.$/, ''),
+      reason: pick.verdict,   // 이 방법의 결론 한 줄 (예: "신강 → 관성(화)로 균형")
       methodWhy: [...pick.paragraphs, ...pick.why],
       johu: base._eokbu.johu, notes: base._eokbu.notes,
     });

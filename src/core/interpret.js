@@ -357,18 +357,24 @@
   E.STEMS_HANJA.forEach((h, i) => { HANJA_READING[h] = E.STEMS[i]; });
   E.BRANCHES_HANJA.forEach((h, i) => { HANJA_READING[h] = E.BRANCHES[i]; });
   Object.assign(HANJA_READING, { 木: '목', 火: '화', 土: '토', 金: '금', 水: '수' });
-  const hasBatchim = (w) => {
+  // 마지막 글자의 받침 번호 (0 = 받침 없음, 8 = ㄹ)
+  const jongOf = (w) => {
     const str = String(w).replace(/["'”’\s]+$/, '').replace(/\([^)]*\)$/, '');
     const last = str[str.length - 1] || '';
     const c = (HANJA_READING[last] || last).charCodeAt(0);
-    return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 !== 0;
+    return c >= 0xAC00 && c <= 0xD7A3 ? (c - 0xAC00) % 28 : 0;
   };
-  // josa('목', '이/가') → '목이', josa('경금(庚金)', '은/는') → '경금(庚金)은'
-  const josa = (w, pair) => { const [a, b] = pair.split('/'); return w + (hasBatchim(w) ? a : b); };
+  const hasBatchim = (w) => jongOf(w) !== 0;
+  // josa('목', '이/가') → '목이', josa('경금(庚金)', '은/는') → '경금(庚金)은', josa('물', '으로/로') → '물로'
+  const josa = (w, pair) => {
+    const [a, b] = pair.split('/');
+    if (pair === '으로/로') return w + (jongOf(w) === 0 || jongOf(w) === 8 ? b : a);
+    return w + (hasBatchim(w) ? a : b);
+  };
   // 괄호나 한자 뒤에 붙은 조사를 받침에 맞게 고친다 (예: "巳(편관)이" → "巳(편관)가")
-  const PAIRS = { 은: '은/는', 는: '은/는', 이: '이/가', 가: '이/가', 을: '을/를', 를: '을/를', 과: '과/와', 와: '과/와' };
+  const PAIRS = { 은: '은/는', 는: '은/는', 이: '이/가', 가: '이/가', 을: '을/를', 를: '을/를', 과: '과/와', 와: '과/와', 으로: '으로/로', 로: '으로/로' };
   const fixJosa = (text) => text.replace(
-    /([가-힣\u4e00-\u9fff]+(?:\([^)]*\))?|[\u4e00-\u9fff])(은|는|이|가|을|를|과|와)(?=[\s,.!?:]|$)/g,
+    /([가-힣\u4e00-\u9fff]+(?:\([^)]*\))?|[\u4e00-\u9fff])(으로|로|은|는|이|가|을|를|과|와)(?=[\s,.!?:]|$)/g,
     (m, word, j) => (/[)\u4e00-\u9fff]$/.test(word) ? josa(word, PAIRS[j]) : m));
   const elName = (e) => `${e}(${ELEMENT_INFO[e].hanja})`;
   const elIdx = (e) => ELS.indexOf(e);
@@ -1129,7 +1135,7 @@
       pillar: lp, score: sc, lucky: luckyItems(s),
       categories: categories(s, god, lp.stemElement, sc.score),
       sections: [
-        section('today-main', '오늘의 흐름', `${luckBand(sc.score)} 날 — ${favorableRole(roleOf(s, lp.stemElement)) ? TEN_GOD_INFO[god].day : isBadRole(roleOf(s, lp.stemElement)) ? `${DB.EVENTS_BY_GOD[god].bad[0]}에 주의하세요.` : TEN_GOD_INFO[god].day}`, [
+        section('today-main', '오늘의 흐름', `${luckBand(sc.score)} 날 — ${sc.score >= 50 ? TEN_GOD_INFO[god].day : `${DB.EVENTS_BY_GOD[god].bad[0]}에 주의하세요.`}`, [
           `오늘의 [[일진]]은 ${lp.hanja}(${lp.text})일입니다. 하늘 글자 ${E.STEMS_HANJA[lp.stem]}는 나에게 ${god}, 땅 글자 ${E.BRANCHES_HANJA[lp.branch]}는 ${lp.branchTenGod}에 해당합니다.`,
           godLine(s, god, lp.stemElement),
           ...eventLines(luckEvents(s, lp)).slice(0, 3),
@@ -1992,7 +1998,7 @@
     return { points, current: Y, hardCut, goodCut, periods: { hard, good }, months, sections };
   }
 
-  const api = { GLOSSARY, ELEMENT_INFO, STEM_INFO, TEN_GOD_INFO, GROUP_INFO, STAGE_INFO, SINSAL_INFO, RELATION_INFO, POSITION_INFO, SAENG, GEUK, readFullSaju, readPersona, readToday, readYear, readDaeun, readCompat, compareCompat, readLifeFlow, analyzeSpouse, marriageYears, spouseTiming, luckScore, yearScore, luckyItems, personaAxes, STEM_PERSONA, GROUP_PERSONA, fixJosa, josa };
+  const api = { GLOSSARY, ELEMENT_INFO, STEM_INFO, TEN_GOD_INFO, GROUP_INFO, STAGE_INFO, SINSAL_INFO, RELATION_INFO, POSITION_INFO, SAENG, GEUK, readFullSaju, readPersona, readToday, readYear, readDaeun, readCompat, compareCompat, readLifeFlow, analyzeSpouse, marriageYears, spouseTiming, luckScore, yearScore, categories, luckyItems, personaAxes, STEM_PERSONA, GROUP_PERSONA, fixJosa, josa };
   if (typeof module !== 'undefined') module.exports = api;
   else root.Interpret = api;
 })(typeof window !== 'undefined' ? window : globalThis);

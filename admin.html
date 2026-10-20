@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>저장 기록 관리</title>
@@ -143,7 +144,9 @@
     function exportCsv() {
       const head = ['저장일', '이름', '성별', '달력', '년', '월', '일', '시', '분', '윤달', '출생지', '시간보정', '자시', '여덟글자', '일간', '신강약', '신강약점수', '용신', '해석방법', '격국', '배우자운', '성향', '메뉴'];
       const rows = st.rows.map(r => { const x = r.result || {}; return [r.created_at, r.name, r.gender, r.calendar, r.birth_year, r.birth_month, r.birth_day, r.birth_hour, r.birth_minute, r.is_leap_month, r.place, r.time_mode, r.zi_hour, (x.pillars || []).join(' '), x.dayMaster, x.strength?.level, x.strength?.score, x.yongsin?.yongsin, x.yongsin?.method, x.gyeokguk, x.spouse?.index, x.persona, r.menu]; });
-      const csv = [head, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      // 방문자가 입력한 값이 =, +, -, @로 시작하면 엑셀이 수식으로 실행하므로 앞에 '를 붙여 글자로 만든다
+      const cell = (v) => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t) && !/^-?\d+(\.\d+)?$/.test(t)) t = "'" + t; return `"${t.replace(/"/g, '""')}"`; };
+      const csv = [head, ...rows].map(row => row.map(cell).join(',')).join('\n');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
       a.download = `saju-records-${new Date().toISOString().slice(0, 10)}.csv`;

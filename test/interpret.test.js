@@ -85,6 +85,16 @@ for (let i = 0; i < 400; i++) {
 check('조사 받침', I.josa('목', '이/가') === '목이');
 check('조사 무받침', I.josa('화', '이/가') === '화가');
 check('조사 은/는', I.josa('경금', '은/는') === '경금은');
+check('조사 으로', I.josa('인성(목)', '으로/로') === '인성(목)으로');
+check('조사 로(받침 없음)', I.josa('화(火)', '으로/로') === '화(火)로');
+check('조사 로(ㄹ 받침)', I.josa('물', '으로/로') === '물로');
+check('조사 고침 으로/로', I.fixJosa('관성(화)로 균형') === '관성(화)으로 균형' && I.fixJosa('식상(수)으로 흘림') === '식상(수)으로 흘림');
+// 오늘의 운세: 첫 문장의 좋고 나쁨은 점수 구간과 같은 방향
+for (let k = 0; k < 40; k++) {
+  const s = M.applyMethod(S.analyzeSaju(randomPerson()), 'consensus', 2026);
+  const t = I.readToday(s, new Date(2026, 9, 1 + (k % 28)));
+  check('오늘: 점수와 첫 문장 방향 일치', (t.score.score < 50) === t.sections[0].lead.includes('주의하세요'), `${t.score.score} ${t.sections[0].lead}`);
+}
 for (let k = 0; k < 30; k++) { const t = JSON.stringify(I.readCompat(M.applyMethod(S.analyzeSaju(randomPerson()), 'consensus'), M.applyMethod(S.analyzeSaju(randomPerson()), 'consensus'))); check('조사 괄호', !/\((가|를|는|을|이)\)/.test(t)); }
 
 // 다양성: 여러 사람에게 글자까지 똑같이 나오는 문장(10% 이상의 사람에게 반복)이 섹션 평균 30% 미만이어야 한다

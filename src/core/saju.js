@@ -805,7 +805,7 @@ function compatibility(a, b) {
   for (const [x, y, nx] of [[a, b, 'A'], [b, a, 'B']]) {
     const pct = y.elements.percent[x.yongsin.yongsin];
     if (pct >= 25) note(8, `${nx}의 용신(${x.yongsin.yongsin})을 상대가 충분히 가짐`);
-    for (const m of x.elements.missing) if (y.elements.count[m] >= 2) note(4, `${nx}에게 없는 ${m}을 상대가 보완`);
+    for (const m of x.elements.missing) if (y.elements.count[m] >= 2) note(4, `${nx}에게 없는 ${m}${'목금'.includes(m) ? '을' : '를'} 상대가 보완`);
   }
 
   return { score: Math.max(0, Math.min(100, score)), items };

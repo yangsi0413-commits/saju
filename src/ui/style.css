@@ -199,12 +199,13 @@ table { width: 100%; border-collapse: collapse; }
 .months th, .months td { padding: 8px 6px; border-bottom: 1px solid var(--line); font-size: 14px; text-align: left; vertical-align: top; }
 .months .num { text-align: right; }
 
-.timeline { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; }
+.timeline { display: flex; gap: 8px; overflow-x: auto; padding: 14px 2px 8px; }  /* 위쪽 여백: '지금' 표시가 잘리지 않게 */
 .dae {
   position: relative; flex: 0 0 76px; display: grid; justify-items: center; gap: 4px;
   padding: 10px 4px; border-radius: 12px; border: 1px solid var(--line); text-align: center;
 }
 .dae.current { border: 2px solid var(--accent); }
+.dae-when { line-height: 1.35; }
 .dae-char { font-family: var(--font-hanja); display: grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; font-size: 22px; font-weight: 700; }
 .now { position: absolute; top: -9px; padding: 0 6px; border-radius: 6px; background: var(--accent); color: var(--on-accent); font-size: 11px; }
 

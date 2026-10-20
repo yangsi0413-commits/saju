@@ -28,7 +28,20 @@
   const params = new URLSearchParams(location.search);
   // ?demo: 미리보기용 예시 인물로 채우고 저장하지 않는다
   // ?profile=…: 관리자 페이지에서 저장된 기록을 다시 열 때. 이 기기에 저장하지 않는다
-  const SHARED = (() => { try { return params.get('profile') ? SajuStore.decodeProfile(params.get('profile')) : null; } catch { return null; } })();
+  // 주소로 들어온 값이라 형식을 확인하고, 계산이 안 되는 값이면 무시한다
+  const SHARED = (() => {
+    try {
+      const p = params.get('profile') ? SajuStore.decodeProfile(params.get('profile')) : null;
+      if (!p) return null;
+      const int = (v, a, b) => Number.isInteger(v) && v >= a && v <= b;
+      const ok = ['M', 'F'].includes(p.gender) && ['solar', 'lunar'].includes(p.calendar) && int(p.year, 1900, 2100) && int(p.month, 1, 12) && int(p.day, 1, 31)
+        && (p.hour == null || (int(p.hour, 0, 23) && int(p.minute ?? 0, 0, 59))) && ['solar', 'standard', 'clock'].includes(p.timeMode) && ['next', 'split'].includes(p.ziHour);
+      if (!ok) return null;
+      const clean = { ...p, name: String(p.name || '').slice(0, 20), place: String(p.place || '').slice(0, 20), longitude: Number(p.longitude) || 127, isLeapMonth: !!p.isLeapMonth };
+      analyzeSaju(clean); // 존재하지 않는 날짜(예: 없는 윤달)면 여기서 걸러진다
+      return clean;
+    } catch { return null; }
+  })();
   const DEMO = params.has('demo') || !!SHARED;
   const DEMO_PROFILES = [
     { name: '지민', gender: 'F', calendar: 'solar', isLeapMonth: false, year: 1990, month: 5, day: 15, hour: 10, minute: 30, place: '서울', timeMode: 'solar', longitude: 127.0, ziHour: 'next' },
@@ -299,7 +312,7 @@
     const place = v('place').value;
     const lng = PLACES.find(([n]) => n === place)?.[1];
     return {
-      name: v('name').value.trim() || (i === 0 ? '나' : '상대'),
+      name: v('name').value.trim() || ['나', '상대', '두 번째 상대'][i],
       gender: document.querySelector(`input[name="p${i}-gender"]:checked`).value,
       calendar: v('calendar').value, isLeapMonth: v('leap').checked,
       year, month, day, hour, minute,
@@ -387,6 +400,9 @@
       ${qaSection(menuId)}
       ${otherMenus(menuId)}`;
     window.scrollTo(0, 0);
+    // 대운 흐름표는 가로로 길어서, 지금 대운이 보이도록 가운데로 옮겨 둔다
+    const tl = app.querySelector('.timeline'), cur = tl?.querySelector('.dae.current');
+    if (cur) tl.scrollLeft += cur.getBoundingClientRect().left - tl.getBoundingClientRect().left - (tl.clientWidth - cur.offsetWidth) / 2;
   }
 
   function resultSaju(s) {
@@ -458,7 +474,7 @@
         <div class="timeline">
           ${r.list.map(d => `
             <div class="dae ${d.current ? 'current' : ''}">
-              <span class="muted small">${d.age}세 · ${d.startYear}</span>
+              <span class="muted small dae-when">${d.age}세<br>${d.startYear}</span>
               <span class="dae-char el-bg-${d.stemElement}">${STEMS_HANJA[d.stem]}</span>
               <span class="dae-char el-bg-${d.branchElement}">${BRANCHES_HANJA[d.branch]}</span>
               <span class="small">${esc(d.stemTenGod)}·${esc(d.branchTenGod)}</span>
@@ -985,14 +1001,15 @@
   }
 
   async function deleteByToken(token) {
-    const msg = document.getElementById('delete-msg');
+    const say = (t) => { const msg = document.getElementById('delete-msg'); if (msg) msg.textContent = t; };
+    if (!SajuStore.enabled()) return say('지금은 저장 기능이 꺼져 있어 서버에 저장된 기록이 없어요.');
     try {
       const n = await SajuStore.remove(token.trim());
       setSavedTokens(savedTokens().filter(x => x.token !== token.trim()));
-      if (msg) msg.textContent = n ? '삭제했어요.' : '해당 코드의 기록이 없어요(이미 삭제되었을 수 있어요).';
-      if (n) renderDelete();
+      if (n) renderDelete(); // 목록을 새로 그린 뒤 안내를 띄운다
+      say(n ? '삭제했어요.' : '해당 코드의 기록이 없어요(이미 삭제되었을 수 있어요).');
     } catch (err) {
-      if (msg) msg.textContent = `삭제하지 못했어요: ${err.message}`;
+      say(`삭제하지 못했어요: ${err.message}`);
     }
   }
 
@@ -1003,11 +1020,20 @@
 
   function route() {
     const [, page, arg] = (location.hash || '#/').split('/');
-    if (page === 'input') renderInput(arg);
-    else if (page === 'result') renderResult(arg);
-    else if (page === 'learn') renderLearn();
-    else if (page === 'delete') renderDelete();
-    else renderHome();
+    try {
+      if (page === 'input') renderInput(arg);
+      else if (page === 'result') renderResult(arg);
+      else if (page === 'learn') renderLearn();
+      else if (page === 'delete') renderDelete();
+      else renderHome();
+    } catch (err) {
+      // 예전에 저장된 입력값 등으로 계산이 안 되면 빈 화면 대신 입력 화면으로 안내한다
+      console.error(err);
+      if (page !== 'result') throw err;
+      renderInput(arg);
+      const e = document.getElementById('form-error');
+      if (e) e.textContent = '저장된 정보로 풀이를 계산하지 못했어요. 생년월일을 다시 확인해 주세요.';
+    }
     if (page !== 'result') window.scrollTo(0, 0);
   }
 
