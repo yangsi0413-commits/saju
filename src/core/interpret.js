@@ -1932,8 +1932,13 @@
     return out.sort((x, y) => y.p - x.p).slice(0, 6);
   }
 
+  // 풀이 속 이름은 "님"을 붙여 부른다. 이름을 비워 둔 기본값(나·상대)이나 이미 님이 붙은 이름은 그대로
+  const PLAIN_NAMES = ['나', '상대', '두 번째 상대', 'A', 'B'];
+  const nim = (n) => (!n || PLAIN_NAMES.includes(n) || /님$/.test(n) ? n : `${n}님`);
+
   function readCompat(a, b, now = new Date()) {
-    const na = a.name || 'A', nb = b.name || 'B';
+    const boost = pairBoost(a, b);   // 지정 커플 식별은 입력한 이름 그대로
+    const na = nim(a.name || 'A'), nb = nim(b.name || 'B');
     a = { ...a, name: na }; b = { ...b, name: nb };
     const Y = now.getFullYear();
     const cats = [];
@@ -2069,7 +2074,6 @@
     ]);
 
     // 지정 커플 보정: 점수 계산식을 본문에 보여 주는 결혼 생활·배우자 별은 그대로 두고 나머지 항목만 올린다
-    const boost = pairBoost(a, b);
     if (boost) for (const c of cats) if (c.key !== 'day' && c.key !== 'star') c.score = clamp(c.score + boost);
     const total = clamp(cats.reduce((sum, c) => sum + c.score * c.weight, 0) / cats.reduce((sum, c) => sum + c.weight, 0));
     const grade = total >= 80 ? '천생연분' : total >= 68 ? '잘 맞는 사이' : total >= 55 ? '노력하면 좋은 사이' : '서로 이해가 필요한 사이';
@@ -2092,7 +2096,7 @@
         `${nb}: "${STEM_PERSONA[b.dayMaster.stem].nick}" 같은 ${GROUP_PERSONA[gb].title}`,
         good.length ? `잘 맞는 점: ${good.slice(0, 3).join(' / ')}` : null,
         caution.length ? `조심할 점: ${caution.slice(0, 3).join(' / ')}` : null,
-        limits.length ? `분석의 한계: ${limits.join(', ')}님의 태어난 시간을 몰라 시주를 빼고 계산했어요. 오행 보완과 성향 비교의 정확도가 조금 낮아요.` : null,
+        limits.length ? `분석의 한계: ${limits.join(', ')}의 태어난 시간을 몰라 시주를 빼고 계산했어요. 오행 보완과 성향 비교의 정확도가 조금 낮아요.` : null,
       ], [
         `종합 점수는 8개 항목의 가중 평균입니다: ${cats.map(c => `${c.title} ${c.score}점×${c.weight}%`).join(', ')}`,
         '점수는 사주로 본 경향일 뿐, 실제 관계는 두 사람의 대화와 노력이 훨씬 중요합니다.',
@@ -2113,7 +2117,7 @@
             goods.length + mixed.length > hards.length ? `끌어당기는 연결이 더 많아, 시간이 갈수록 서로에게 스며드는 관계예요.` : hards.length > goods.length + mixed.length ? `부딪히는 연결이 더 많아 처음엔 서로 낯설 수 있지만, 그만큼 서로를 바꾸고 키우는 관계예요.` : '끌림과 자극이 균형을 이루는 관계예요.',
           ] : ['두 사람의 글자 사이에 합이나 충이 없어, 서로에게 휘둘리지 않고 각자의 색을 지키며 만나는 관계예요.'],
           ['두 사람의 년·월·일·시 기둥 여덟 글자를 모두 맞대어 천간합·충, 지지 육합·삼합·반합·방합·충·형·원진·해·파를 찾았습니다.',
-            '자리의 뜻: 년주 = 집안·뿌리, 월주 = 부모·일하는 방식, 일간 = 본성, 일지 = 배우자 자리, 시주 = 자녀·미래'].concat(limits.length ? [`${limits.join(', ')}님은 태어난 시간을 몰라 시주를 빼고 비교했어요.`] : []));
+            '자리의 뜻: 년주 = 집안·뿌리, 월주 = 부모·일하는 방식, 일간 = 본성, 일지 = 배우자 자리, 시주 = 자녀·미래'].concat(limits.length ? [`${josa(limits.join(', '), '은/는')} 태어난 시간을 몰라 시주를 빼고 비교했어요.`] : []));
       })(),
       (() => {
         const ga2 = partnerGives(a, b), gb2 = partnerGives(b, a);
@@ -2178,8 +2182,8 @@
     const tie = r1.score === r2.score;
     return {
       results: [r1, r2],
-      section: section('compare', '누구와 더 잘 맞을까?', tie ? `두 사람과의 궁합 점수가 같습니다 (${r1.score}점)` : `${win.names[1]}님과 더 잘 맞아요 (${win.score}점 vs ${lose.score}점)`, [
-        tie ? '종합 점수는 같지만 잘 맞는 부분이 다릅니다. 아래 항목별 점수를 비교해 보세요.' : `${a.name}님에게는 ${josa(win.names[1], '이/가')} 더 잘 맞는 상대로 보입니다. 가장 큰 차이를 만든 이유는 다음과 같습니다.`,
+      section: section('compare', '누구와 더 잘 맞을까?', tie ? `두 사람과의 궁합 점수가 같습니다 (${r1.score}점)` : `${josa(win.names[1], '과/와')} 더 잘 맞아요 (${win.score}점 vs ${lose.score}점)`, [
+        tie ? '종합 점수는 같지만 잘 맞는 부분이 다릅니다. 아래 항목별 점수를 비교해 보세요.' : `${nim(a.name)}에게는 ${josa(win.names[1], '이/가')} 더 잘 맞는 상대로 보입니다. 가장 큰 차이를 만든 이유는 다음과 같습니다.`,
         ...reasons,
         ...loseBetter,
       ], [

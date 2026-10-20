@@ -724,7 +724,7 @@
     const o = partners[0];
     const r = I.readCompat(s, o);
     return `
-      ${scoreCard(`${s.name} ♥ ${o.name} 궁합`, { score: r.score, grade: r.grade })}
+      ${scoreCard(`${r.names[0]} ♥ ${r.names[1]} 궁합`, { score: r.score, grade: r.grade })}
       <section class="card"><h2>항목별 궁합</h2>${compatBars([r])}</section>
       ${r.sections.map(x => renderSection(x)).join('')}
       ${compatPersons([s, o])}`;
