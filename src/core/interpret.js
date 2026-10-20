@@ -554,7 +554,7 @@
   }
 
   function readElements(s) {
-    const { count, percent, missing, excess } = s.elements;
+    const { percent, missing, excess } = s.elements;
     const sorted = ELS.slice().sort((a, b) => percent[b] - percent[a]);
     const [top, second] = sorted;
     const weak = ELS.filter(e => !missing.includes(e) && percent[e] < 8);
@@ -850,7 +850,6 @@
     return { male, rule, starEl, occ, occText, positions, factors, index, grade, palace: { branch: day.branch, god: day.branchTenGod, stage: day.twelveStage, element: palEl, role: pr }, hongran: hr, cheonhui: ch };
   }
   const POS_LABEL_KO = { year: '년주', month: '월주', day: '일주', hour: '시주' };
-  const GUNGWI_LABEL = { year: '년주', month: '월주', day: '일지(배우자궁)', hour: '시주' };
 
   // 해마다 인연·결혼 기운: 배우자 별 유입, 일지 합·충, 홍란·천희, 도화, 대운의 배우자 별, 그해 전체 운
   function marriageYears(s, from, to) {
@@ -891,7 +890,7 @@
 
   function readLove(s, now = new Date()) {
     const sp = analyzeSpouse(s), tm = spouseTiming(s, now);
-    const p = s.pillars, pal = sp.palace;
+    const pal = sp.palace;
     const good = sp.factors.filter(f => f.w > 0).sort((a, b) => b.w - a.w);
     const bad = sp.factors.filter(f => f.w < 0).sort((a, b) => a.w - b.w);
     return section('love', '연애·결혼운', `${sp.grade} (배우자운 지수 ${sp.index}점 = 기준 60 ${sp.factors.reduce((t, f) => t + f.w, 0) >= 0 ? '+' : '−'} ${Math.abs(Math.round(sp.factors.reduce((t, f) => t + f.w, 0) * 6))})`, [
@@ -1661,14 +1660,6 @@
 
   // ---- 궁합 심화: 여덟 글자 전체 교차, 서로에게 주는 기운, 함께하는 활동 ----
   const CROSS_AREA = { 년간: '사회적 얼굴', 년지: '집안·뿌리', 월간: '일하는 방식', 월지: '부모·성장 환경', 일간: '본성(나 자신)', 일지: '배우자 자리(속마음·생활)', 시간: '미래 계획', 시지: '자녀·노후' };
-  const CROSS_MEANING = {
-    합: '이 부분에서 서로 끌리고 손발이 잘 맞아요',
-    충: '이 부분에서 서로 강하게 자극해요. 부딪히기도 하지만, 관계가 정체되지 않게 하는 힘이기도 해요',
-    형: '이 부분은 생각이 엇갈리기 쉬워 조율이 필요해요',
-    원진: '이 부분에서 이유 없이 서운함이 생기기 쉬워, 말로 확인하는 습관이 좋아요',
-    해: '이 부분에서 작은 어긋남이 생길 수 있어요',
-    파: '이 부분에서 계획이 틀어지기 쉬워 미리 맞춰 두면 좋아요',
-  };
   // 자리가 실제 생활에서 가리키는 주제 (중요한 순서)
   const AREA_TOPIC = [['일지', '함께 사는 생활'], ['일간', '성격'], ['월지', '부모님·생활 기반'], ['월간', '일·사회생활'], ['시지', '자녀·노후'], ['시간', '미래 계획'], ['년지', '양가 집안'], ['년간', '대외적인 모습']];
   // t가 있으면 "~ 문제에서"로 시작하고, 없으면(같은 줄 두 번째 관계) 내용만
@@ -1748,8 +1739,8 @@
   function togetherActs(a, b) {
     const ea = a.yongsin.yongsin, eb = b.yongsin.yongsin, da = DATE_ACTS[ea], db = DATE_ACTS[eb];
     const color = (e) => ELEMENT_INFO[e].color.split(/[,·]/)[0].trim();
-    if (ea === eb) return `두 사람 모두 ${elName(ea)} 기운이 필요해 같은 데이트가 둘 다에게 좋아요: ${da.join(', ')}. 함께 가기 좋은 방향은 ${ELEMENT_INFO[ea].direction}, 커플 아이템 색은 ${color(ea)}이에요.`;
-    return `${josa(a.name, '은/는')} ${elName(ea)}, ${josa(b.name, '은/는')} ${elName(eb)} 기운이 필요해요. "${da[0]}" 뒤에 "${db[0]}"처럼 두 사람의 기운을 하나씩 섞은 데이트가 둘 다에게 좋아요. 그 밖에 ${da[1]}, ${db[1]}도 추천해요. 커플 아이템은 ${color(ea)}과 ${color(eb)}을 함께 쓰면 좋아요.`;
+    if (ea === eb) return `두 사람 모두 ${elName(ea)} 기운이 필요해 같은 데이트가 둘 다에게 좋아요: ${da.join(', ')}. 함께 가기 좋은 방향은 ${ELEMENT_INFO[ea].direction}, 커플 아이템 색은 ${josa(color(ea), '이에요/예요')}.`;
+    return `${josa(a.name, '은/는')} ${elName(ea)}, ${josa(b.name, '은/는')} ${elName(eb)} 기운이 필요해요. "${da[0]}" 뒤에 "${db[0]}"처럼 두 사람의 기운을 하나씩 섞은 데이트가 둘 다에게 좋아요. 그 밖에 ${da[1]}, ${db[1]}도 추천해요. 커플 아이템은 ${josa(color(ea), '과/와')} ${josa(color(eb), '을/를')} 함께 쓰면 좋아요.`;
   }
 
   function readCompat(a, b, now = new Date()) {
