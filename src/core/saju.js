@@ -733,6 +733,7 @@ function analyzeSaju(input) {
 
   const result = {
     name: input.name,
+    calendar: input.calendar === 'lunar' ? 'lunar' : 'solar',   // 입력한 달력 (궁합 보정 식별에 사용)
     gender: input.gender,
     birth: {
       solarDate: t.solarDate,

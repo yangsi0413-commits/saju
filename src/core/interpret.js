@@ -1597,8 +1597,9 @@
   }
 
   // 운영자가 지정한 커플의 궁합 보정. 공개 저장소라 생년월일 대신 해시만 둔다
-  // 키 = 'saju-pair:' + 두 사람의 (성별 + 입력 시각 'YYYY-MM-DD HH:mm')을 정렬해 '|'로 이은 값의 FNV-1a
-  const PAIR_BOOST = { '6feed57c': 8 };
+  // 키 = 'saju-pair:' + 두 사람의 (이름 + 성별 + 양력 입력 시각 'YYYY-MM-DD HH:mm')을 정렬해 '|'로 이은 값의 FNV-1a
+  //       이름·성별·생년월일·태어난 시각이 모두 정확히 같고, 양력으로 입력했을 때만 적용된다
+  const PAIR_BOOST = { '23192043': 8 };
   // 보정 커플에게는 같은 사실을 긍정적인 쪽으로 말한다 (사주에서 나온 내용 자체는 빼지 않는다)
   const WARM = [
     [/고집이 부딪히면 둘 다 물러서지 않을 수 있어요\./g, '고집이 부딪힐 때도 금방 서로의 마음을 알아채고 풀어 가는 사이예요.'],
@@ -1653,8 +1654,8 @@
   const warm = (t) => (typeof t === 'string' ? WARM.reduce((x, [re, to]) => x.replace(re, to), t) : t);
   const fnv1a = (str) => { let h = 0x811c9dc5; for (const ch of str) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
   const pairBoost = (a, b) => {
-    if (!a.birth?.hourKnown || !b.birth?.hourKnown) return 0;
-    const key = [a, b].map(x => `${x.gender}${x.birth.clock}`).sort().join('|');
+    if ([a, b].some(x => !x.birth?.hourKnown || x.calendar !== 'solar')) return 0;
+    const key = [a, b].map(x => `${String(x.name || '').trim()}${x.gender}${x.birth.clock}`).sort().join('|');
     return PAIR_BOOST[fnv1a(`saju-pair:${key}`)] || 0;
   };
 
