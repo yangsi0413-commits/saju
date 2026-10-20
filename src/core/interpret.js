@@ -1561,13 +1561,6 @@
     편인: '나를 깊이 이해해 주는 사람이에요. 정신적인 교감이 큰 관계예요.',
     정인: '나를 보살펴 주는 포근한 사람이에요. 기대고 싶은 상대예요.',
   };
-  const CONFLICT_STYLE = {
-    비겁: ['물러서지 않고 정면으로 부딪혀요. 자존심이 상하면 오래가요.', '자존심을 세워 주는 말 한마디'],
-    식상: ['할 말은 해야 풀려요. 다만 말이 날카로워지기 쉬워요.', '끝까지 들어 주는 것'],
-    재성: ['감정보다 해결책부터 찾으려 해요. 따지는 말투가 차갑게 들릴 수 있어요.', '구체적인 해결책을 함께 정하는 것'],
-    관성: ['참다가 한 번에 터져요. 옳고 그름으로 따지는 편이에요.', '잘못을 먼저 인정하고 사과하는 것'],
-    인성: ['말을 아끼고 혼자 생각해요. 침묵이 길어질 수 있어요.', '혼자 생각할 시간을 주고 기다려 주는 것'],
-  };
   const MONEY_STYLE = (x) => {
     const jeong = x.tenGodCount.정재, pyeon = x.tenGodCount.편재, g = x.strength.groups;
     if (jeong + pyeon === 0 && g.재성 < 8) return ['가치형', '돈보다 의미와 경험을 중시하는 편'];
@@ -1640,6 +1633,16 @@
     [/감정보다 해결책부터 찾으려 해요\. 따지는 말투가 차갑게 들릴 수 있어요\./g, '감정보다 해결책부터 찾는 믿음직한 사람이에요. 부드러운 말 한마디만 더하면 금방 풀려요.'],
     // 띠·집안
     [/함께할수록 힘이 붙습니다\. 성장 환경\(월지\)으로 보면 같은 방향을 바라보는 관계입니다\. 함께할수록 힘이 붙습니다\./g, '함께할수록 힘이 붙습니다. 성장 환경(월지)도 같은 방향을 바라봐, 양가가 서로를 편하게 받아들이기 좋은 인연이에요.'],
+    // 다툴 때 · 조언 (갈등 유형·말버릇)
+    [/한 사람은 몰아붙이고 한 사람은 피하는 조합이라, 쫓고 도망가는 싸움이 되기 쉬워요/g, '한 사람은 바로 풀고 싶고 한 사람은 시간이 필요한 조합이에요. 이야기할 때를 미리 정해 두면 오히려 잘 맞아요'],
+    [/대등한 사이라 누가 먼저 사과하느냐로 자존심 대결이 되기 쉬워요/g, '대등한 친구 같은 사이라, 먼저 손 내미는 쪽이 더 멋있어 보이는 관계예요'],
+    [/조심할 말버릇\(/g, '조금만 바꾸면 좋은 말버릇('],
+    [/두 사람 모두에게 상처가 되는 것:/g, '두 사람 모두 특히 아껴 줘야 할 부분:'],
+    [/에게 상처가 되는 것:/g, '에게 특히 조심해 줄 것:'],
+    [/잘 부딪히는 주제:/g, '서로 맞춰 가면 좋은 주제:'],
+    [/생활의 변화로 부딪히기 쉬운 해:/g, '생활의 변화가 있어 서로 더 챙겨 줄 해:'],
+    [/흐르기 쉬워요\./g, '흐를 때가 있어요. 아래 한 가지만 기억하면 충분해요.'],
+    [/흐르기 쉽지만 모습은 달라요\./g, '흐를 때가 있지만 모습은 달라요. 각자 한 가지만 기억하면 충분해요.'],
     // 조언
     [/다툼이 크게 줄어들어요\./g, '함께하는 생활이 훨씬 편안해져요.'],
     [/^(\S+(?: \S+)?)에 신경 쓰면 훨씬 좋아져요\.$/, '$1만 조금 챙기면 더 행복해지는 사이예요.'],
@@ -1741,6 +1744,192 @@
     const color = (e) => ELEMENT_INFO[e].color.split(/[,·]/)[0].trim();
     if (ea === eb) return `두 사람 모두 ${elName(ea)} 기운이 필요해 같은 데이트가 둘 다에게 좋아요: ${da.join(', ')}. 함께 가기 좋은 방향은 ${ELEMENT_INFO[ea].direction}, 커플 아이템 색은 ${josa(color(ea), '이에요/예요')}.`;
     return `${josa(a.name, '은/는')} ${elName(ea)}, ${josa(b.name, '은/는')} ${elName(eb)} 기운이 필요해요. "${da[0]}" 뒤에 "${db[0]}"처럼 두 사람의 기운을 하나씩 섞은 데이트가 둘 다에게 좋아요. 그 밖에 ${da[1]}, ${db[1]}도 추천해요. 커플 아이템은 ${josa(color(ea), '과/와')} ${josa(color(eb), '을/를')} 함께 쓰면 좋아요.`;
+  }
+
+  // ---- 갈등·화해: 일간 반응 + 갈등 유형(Thomas-Kilmann) + 말버릇(Gottman) + 두 사람의 십성 관계 ----
+  function conflictProfile(x) {
+    const g = x.strength.groups, c = x.tenGodCount;
+    // 자기주장: 내 힘(신강약)과 드러내는 기운(비겁·식상) / 협조: 받아들이는 기운(인성·정재·정관·식신)에서 거친 기운(겁재·상관·편관)을 뺀다
+    const assert = x.strength.score * 0.6 + (g.비겁 + g.식상) * 0.4;
+    const coop = g.인성 + (c.정재 + c.정관 + c.식신 + c.정인) * 5 - (c.겁재 + c.상관 + c.편관) * 5;
+    // 기준은 실제 분포(무작위 1만 명)의 아래·위 약 30%로 잡아, 다섯 유형이 고르게 나오게 했다
+    const hiA = assert >= 46, loA = assert < 33, hiC = coop >= 30, loC = coop < 12;
+    const mode = hiA ? (coop >= 27 ? '협력형' : '경쟁형')
+      : loA ? (coop >= 17 ? '수용형' : '회피형')
+      : coop >= 38 ? '협력형' : coop < 4 ? '경쟁형' : '타협형';
+    const top = GROUPS.slice().sort((p, q) => g[q] - g[p])[0];
+    return { mode, top, horse: DB.HORSEMAN[top], stem: DB.STEM_CONFLICT[x.dayMaster.stem], assert: Math.round(assert), coop: Math.round(coop) };
+  }
+
+  // 두 사람이 잘 부딪히는 주제
+  function fightTopics(a, b, ctx) {
+    const { cr, ax, bx, ma, mb } = ctx, out = [];
+    for (const x of cr.filter(c => c.type !== 'good' && !c.weak)) for (const [k, t] of AREA_TOPIC) if (x.text.includes(CROSS_AREA[k]) && !out.includes(t)) { out.push(t); break; }
+    // 화면에 보이는 이름과 해법 표(DB.TOPIC_FIX)의 키를 함께 둔다
+    const keyed = out.map(t => [t, t]);
+    if (ma[0] !== mb[0]) keyed.push([`돈 쓰는 방식(${a.name} ${ma[0]}, ${b.name} ${mb[0]})`, '돈']);
+    if (Math.abs(ax[2].value - bx[2].value) >= 30) keyed.push(['약속과 계획(계획형과 즉흥형의 차이)', '약속']);
+    if (Math.abs(ax[0].value - bx[0].value) >= 35) keyed.push(['주말과 쉬는 방식(밖에서 충전 vs 집에서 충전)', '주말']);
+    if (ax[3].value >= 60 && bx[3].value >= 60) keyed.push(['누가 결정하느냐(둘 다 주도형)', '결정']);
+    if (Math.abs(ax[1].value - bx[1].value) >= 30) keyed.push(['감정 표현의 온도(감성형과 이성형의 차이)', '감정']);
+    // 생활형 주제(돈·약속·주말 등)를 앞에, 자리에서 나온 주제를 뒤에 두어 서로 섞이게 한다
+    const life = keyed.slice(out.length), area = keyed.slice(0, out.length);
+    return [...life.slice(0, 2), ...area, ...life.slice(2)].slice(0, 4);
+  }
+
+  // 일지가 그해 지지와 충이면 생활·관계가 흔들리기 쉬운 해
+  const fightYears = (a, b, Y) => {
+    const out = [];
+    for (let y = Y; y < Y + 6; y++) {
+      const yb = ((y - 4) % 12 + 12) % 12, who = [a, b].filter(x => Math.abs(x.pillars.day.branch - yb) === 6).map(x => x.name);
+      if (who.length) out.push(`${y}년(${E.BRANCHES_HANJA[yb]}년, ${who.join('·')}의 배우자 자리 충)`);
+    }
+    return out;
+  };
+
+  function fightSection(a, b, ctx) {
+    const { na, nb, godAB, godBA, dr, st } = ctx;
+    const pa = conflictProfile(a), pb = conflictProfile(b);
+    const key = [pa.mode, pb.mode].sort().join('|');
+    const topics = fightTopics(a, b, ctx), years = fightYears(a, b, ctx.Y);
+    const habit = (x, p) => `${josa(x.name, '이/가')} 조심할 말버릇(${p.horse.name}): ${p.horse.habit}. → ${p.horse.fix}.`;
+    const sameStem = a.dayMaster.stem === b.dayMaster.stem;
+    return section('compat-fight', '다툴 때', `${josa(na, '은/는')} ${pa.mode}, ${josa(nb, '은/는')} ${pb.mode} — ${DB.MODE_PAIR[key].split('.')[0]}`, [
+      sameStem ? `두 사람 모두 ${a.dayMaster.hanja}일간이라 화날 때 모습이 닮았어요: ${pa.stem[0]}.` : `${josa(na, '이/가')} 화날 때: ${pa.stem[0]}.`,
+      sameStem ? null : `${josa(nb, '이/가')} 화날 때: ${pb.stem[0]}.`,
+      pa.mode === pb.mode ? `다툼에서는 두 사람 모두 ${DB.CONFLICT_MODE[pa.mode].desc} ${pa.mode}이에요.` : `다툼에서 ${josa(na, '은/는')} ${DB.CONFLICT_MODE[pa.mode].desc} ${pa.mode}, ${josa(nb, '은/는')} ${DB.CONFLICT_MODE[pb.mode].desc} ${pb.mode}이에요.`,
+      `두 사람의 조합: ${DB.MODE_PAIR[key]}`,
+      godAB === godBA ? `서로를 보는 눈(서로 ${godAB}): ${DB.GOD_FRICTION[godAB]}.`
+        : `서로를 보는 눈: ${na}에게 ${josa(nb, '은/는')} ${godAB} — ${DB.GOD_FRICTION[godAB]}. ${nb}에게 ${josa(na, '은/는')} ${godBA} — ${DB.GOD_FRICTION[godBA]}.`,
+      topics.length ? `잘 부딪히는 주제: ${topics.map(t => t[0]).join(', ')}` : '잘 부딪히는 주제: 두 사람 사이에 뚜렷하게 반복되는 갈등 주제는 보이지 않아요.',
+      habit(a, pa),
+      pa.horse.name === pb.horse.name && pa.top === pb.top ? `${nb}도 같은 말버릇이 있어, 두 사람이 함께 이 규칙을 정해 두면 좋아요.` : habit(b, pb),
+      sameStem ? `두 사람 모두에게 상처가 되는 것: ${pa.stem[1]}` : `${na}에게 상처가 되는 것: ${pa.stem[1]} · ${nb}에게 상처가 되는 것: ${pb.stem[1]}`,
+      sameStem ? `서로 화해하려면: ${pa.stem[2]}. (화해 신호: ${pa.stem[3]})` : `${josa(na, '과/와')} 화해하려면: ${pa.stem[2]}. (화해 신호: ${pa.stem[3]})`,
+      sameStem ? null : `${josa(nb, '과/와')} 화해하려면: ${pb.stem[2]}. (화해 신호: ${pb.stem[3]})`,
+      years.length ? `생활의 변화로 부딪히기 쉬운 해: ${years.join(', ')}. 이사·이직 같은 변화가 겹치는 때라, 그해에는 서로의 컨디션을 먼저 챙겨 주세요.` : null,
+      dr.type === '충' || st.score <= 45 ? '이 커플은 부딪히는 기운이 있어 다툼이 잦을 수 있어요. 대신 그만큼 서로를 강하게 의식한다는 뜻이기도 해요. "싸우지 않기"보다 "잘 싸우는 규칙"을 만드세요.' : null,
+    ], [
+      `화날 때의 반응은 각자의 일간(${na} ${a.dayMaster.hanja}, ${nb} ${b.dayMaster.hanja})이 가진 물상의 성질로 봤습니다.`,
+      `갈등 유형은 Thomas-Kilmann 모델(자기주장 × 협조)을 따랐습니다. 자기주장 = 신강약 점수와 비겁·식상 비중, 협조 = 인성 비중과 정재·정관·식신·정인 수에서 겁재·상관·편관 수를 뺀 값: ${na} 주장 ${pa.assert}·협조 ${pa.coop}, ${nb} 주장 ${pb.assert}·협조 ${pb.coop}`,
+      `말버릇과 처방은 Gottman의 부부 연구(관계를 해치는 비난·경멸·방어·담쌓기와 그 처방)를 각자 가장 강한 십성 묶음(${na} ${pa.top}, ${nb} ${pb.top})에 맞춰 골랐습니다.`,
+      `서로를 보는 눈은 두 일간 사이의 십성(${na}→${nb} ${godAB}, ${nb}→${na} ${godBA})으로 봤습니다.`,
+    ]);
+  }
+
+  // 결정권을 나눌 분야: 각자 가장 강한 십성 묶음이 잘하는 일
+  const DOMAIN = { 비겁: '친구·모임 약속', 식상: '데이트·여행 기획', 재성: '돈 관리와 큰 지출', 관성: '일정과 집안 규칙', 인성: '정보 찾기와 집안 대소사' };
+  const MONEY_ADVICE = {
+    '저축형|투자형': (s, i) => `${josa(s, '은/는')} 모으고 ${josa(i, '은/는')} 굴리는 편이에요. 생활비·비상금은 ${s}이, 여윳돈 투자는 ${i}이 맡되 "한 번에 얼마 이상은 같이 정하기" 한도를 정해 두세요.`,
+    '씀씀이형|저축형': (p, s) => `${josa(p, '은/는')} 사람을 챙기느라 쓰고 ${josa(s, '은/는')} 모으는 편이에요. 경조사·선물 예산을 한 달 단위로 정해 두면 서로 서운할 일이 줄어요.`,
+    '씀씀이형|투자형': (p, i) => `둘 다 돈이 잘 나가는 편이에요(${p} 지출, ${i} 투자). 월급날 자동이체로 저축부터 떼어 두는 규칙이 꼭 필요해요.`,
+    '가치형|저축형': (v, s) => `${josa(v, '은/는')} 경험에, ${josa(s, '은/는')} 저축에 돈을 써요. "경험 통장"을 따로 두면 서로의 가치를 존중할 수 있어요.`,
+    '가치형|투자형': (v, i) => `${josa(v, '은/는')} 의미 있는 곳에, ${josa(i, '은/는')} 불어나는 곳에 돈을 둬요. 큰돈을 쓸 때는 "이게 우리에게 어떤 의미인지"를 함께 이야기해 보세요.`,
+    '가치형|씀씀이형': (v, p) => `둘 다 돈을 모으기보다 쓰는 쪽이에요(${v} 경험, ${p} 사람). 고정 저축액을 먼저 정해 두면 마음 편히 쓸 수 있어요.`,
+  };
+  const SAME_EL_ADVICE = {
+    목: '둘 다 목(木) 기운이라 성장 욕구가 강해요. 같이 배우는 목표(운동, 자격증, 여행 계획)를 하나 정해 두면 경쟁 대신 응원이 돼요.',
+    화: '둘 다 화(火) 기운이라 뜨겁게 좋아하고 뜨겁게 싸워요. 감정이 오를 땐 10분만 각자 식히고 다시 이야기하는 규칙이 잘 맞아요.',
+    토: '둘 다 토(土) 기운이라 안정을 중시하지만 변화를 미루기 쉬워요. 1년에 한 번 "새로운 것 하나 해 보기"를 함께 정해 보세요.',
+    금: '둘 다 금(金) 기운이라 원칙이 분명해요. 누가 옳은지보다 "우리에게 맞는 규칙"을 정한다는 마음으로 이야기하세요.',
+    수: '둘 다 수(水) 기운이라 생각이 깊고 속마음을 늦게 꺼내요. 일주일에 한 번 서로의 기분을 묻는 시간을 정해 두세요.',
+  };
+
+  function adviceList(a, b, ctx) {
+    const { na, nb, cat, ax, bx, ma, mb, dr, relDay, lead, talkA, talkB, dirs, timing, cr, st } = ctx;
+    const pa = conflictProfile(a), pb = conflictProfile(b);
+    const out = [];
+    const add = (p, title, text) => { if (text && !out.some(o => o.text === text)) out.push({ p, title, text }); };
+    const weakP = (k) => 100 - cat[k].score;   // 점수가 낮은 항목일수록 먼저
+
+    // 결혼 생활
+    if (dr.type === '충') add(weakP('day') + 10, '결혼 생활', `두 사람의 배우자 자리가 충이라, 같이 살면 각자만의 공간(작은 방이나 책상 하나)이 꼭 필요해요. 혼자 있는 시간을 존중해 주는 것이 오히려 사이를 가깝게 해요.`);
+    else if (dr.type === '원진') add(weakP('day') + 8, '결혼 생활', `배우자 자리가 원진이라 이유 없이 서운한 날이 생겨요. 서운함은 24시간 안에, 짧게 말하기로 약속해 두세요.`);
+    else if (dr.type === '형') add(weakP('day') + 8, '결혼 생활', `배우자 자리가 형이라 생활 규칙에서 부딪히기 쉬워요. 청소·식사·귀가 시간처럼 자주 부딪히는 규칙은 글로 정해 두세요.`);
+    else if (relDay === 2 || relDay === 3) add(weakP('day'), '결혼 생활', `생활에서는 ${josa(lead, '이/가')} 이끄는 편이라, ${lead === na ? nb : na}의 의견을 먼저 묻는 습관이 균형을 잡아 줘요. 집안일은 "잘하는 사람이 맡기"로 나눠 보세요.`);
+    else add(weakP('day'), '결혼 생활', '생활 습관(정리, 수면, 소비)에 대한 규칙을 미리 정해 두면 다툼이 크게 줄어들어요.');
+
+    // 돈
+    if (ma[0] === mb[0]) add(weakP('money'), '돈·가치관', `두 사람 모두 ${ma[0]}이라 돈 문제로 부딪히진 않지만, 같은 약점도 공유해요. ${{ 저축형: '아끼는 데만 집중하지 말고, 둘을 위한 즐거움에도 예산을 두세요.', 투자형: '둘 다 공격적일 수 있으니 "잃어도 되는 돈" 한도를 함께 정해 두세요.', 씀씀이형: '저축을 자동이체로 먼저 떼어 두는 규칙이 꼭 필요해요.', 가치형: '경험도 좋지만, 비상금 3개월 치는 먼저 마련해 두세요.' }[ma[0]]}`);
+    else { const k = [ma[0], mb[0]].sort().join('|'), f = MONEY_ADVICE[k]; const [x, y] = [ma[0], mb[0]].sort()[0] === ma[0] ? [na, nb] : [nb, na]; if (f) add(weakP('money'), '돈·가치관', f(x, y)); }
+
+    // 대화
+    if (talkA && talkB) add(weakP('talk'), '대화·소통', `둘 다 말이 많은 편이라, 다툴 때는 "한 사람이 말할 때 끝까지 듣기, 끝나면 들은 내용을 한 문장으로 되짚기"를 해 보세요.`);
+    else if (talkA !== talkB) { const [t, l] = talkA ? [na, nb] : [nb, na]; add(weakP('talk'), '대화·소통', `${josa(t, '이/가')} 말을 꺼내는 쪽이라, ${l}에게 생각할 시간을 준 뒤 다시 물어봐 주세요. ${josa(l, '은/는')} 짧게라도 "지금은 이런 기분이야"라고 알려 주면 충분해요.`); }
+    else add(weakP('talk'), '대화·소통', '둘 다 속마음을 늦게 꺼내는 편이에요. 일주일에 한 번, 산책하며 "이번 주 좋았던 일·서운했던 일" 하나씩 나누는 시간을 정해 두세요.');
+
+    // 배우자 별
+    const pulled = dirs.filter(d => d.kind !== 'none');
+    if (!pulled.length) add(weakP('star'), '배우자 별', '설렘보다 정으로 깊어지는 관계예요. 작은 이벤트와 표현으로 이성으로서의 긴장감을 지켜 주세요.');
+    else if (pulled.length === 1) { const more = pulled[0].x.name, less = more === na ? nb : na; add(weakP('star'), '배우자 별', `${josa(more, '이/가')} 더 끌리는 관계예요. ${josa(less, '은/는')} 표현을 조금 더 자주 해 주고, ${josa(more, '은/는')} 마음의 속도를 상대에게 맞춰 주면 균형이 맞아요.`); }
+    else if (dirs.every(d => d.kind === 'jeong')) add(weakP('star') - 10, '배우자 별', '서로가 배우자감인 드문 조합이에요. 미래 이야기(사는 곳, 아이, 일)를 미루지 말고 일찍 나눠 보세요.');
+    else add(weakP('star') - 5, '배우자 별', '서로 끌리는 관계예요. 끌림이 강한 만큼 질투나 서운함도 생기기 쉬우니, 연락 빈도처럼 사소한 기대를 미리 맞춰 두세요.');
+
+    // 생활 리듬
+    const dPlan = ax[2].value - bx[2].value, dOut = ax[0].value - bx[0].value, dFeel = ax[1].value - bx[1].value;
+    if (Math.abs(dPlan) >= 30) { const [p, f] = dPlan > 0 ? [na, nb] : [nb, na]; add(weakP('rhythm') + 5, '생활 리듬', `여행이나 데이트는 ${josa(p, '이/가')} 큰 틀(날짜·예산·숙소)을, ${josa(f, '이/가')} 현장(맛집·코스)을 맡으면 둘 다 즐거워요.`); }
+    if (Math.abs(dOut) >= 35) { const [o, i] = dOut > 0 ? [na, nb] : [nb, na]; add(weakP('rhythm') + 3, '주말 보내기', `${josa(o, '은/는')} 밖에서, ${josa(i, '은/는')} 집에서 충전하는 타입이에요. "토요일은 밖, 일요일은 집"처럼 주말을 나눠 보세요.`); }
+    if (Math.abs(dFeel) >= 30) { const [e, r] = dFeel > 0 ? [na, nb] : [nb, na]; add(42, '애정 표현', `${josa(e, '은/는')} 말과 표정으로, ${josa(r, '은/는')} 행동과 책임으로 사랑을 보여 줘요. ${josa(r, '은/는')} "고마워·좋아해"를 소리 내어 말해 주고, ${josa(e, '은/는')} ${r}의 챙김을 사랑으로 알아봐 주세요.`); }
+    if (ax[3].value >= 60 && bx[3].value >= 60) add(weakP('rhythm') + 6, '결정권', pa.top === pb.top ? `둘 다 주도하는 성향이고 강점도 같아요(${DOMAIN[pa.top]}). 이 분야는 한 달씩 번갈아 맡고, 나머지는 잘하는 사람이 정하기로 해 보세요.` : `둘 다 주도하는 성향이라 분야별로 결정권을 나눠 두세요. ${josa(na, '은/는')} ${DOMAIN[pa.top]}, ${josa(nb, '은/는')} ${josa(DOMAIN[pb.top], '을/를')} 맡으면 잘 맞아요.`);
+    else if (ax[3].value <= 40 && bx[3].value <= 40) add(weakP('rhythm') + 4, '결정권', '둘 다 맞춰 주는 성향이라 결정이 늦어지기 쉬워요. "저녁 메뉴는 3분 안에, 큰 결정은 일주일 안에"처럼 마감을 정해 보세요.');
+
+    // 띠·집안
+    const fam = branchRelation(a.pillars.year.branch, b.pillars.year.branch);
+    if (['충', '원진', '형'].includes(fam.type)) add(weakP('family') + 6, '양가 가족', `띠가 ${fam.type} 관계라 양가 분위기가 다를 수 있어요. 명절·양가 방문은 "번갈아 가기"처럼 규칙을 미리 정하고, 각자 자기 가족을 설득하는 역할을 맡으세요.`);
+    else add(weakP('family'), '양가 가족', '양가 가족 문제에서는 각자 자기 가족을 설득하는 역할을 맡으세요.');
+
+    // 오행 보완
+    const fills = [[a, b], [b, a]].filter(([x, y]) => y.elements.percent[x.yongsin.yongsin] >= 20);
+    for (const [x, y] of fills) add(38, '서로 채우기', `${josa(x.name, '이/가')} 지칠 땐 ${josa(y.name, '과/와')} "${DATE_ACTS[x.yongsin.yongsin][2]}"처럼 ${elName(x.yongsin.yongsin)} 기운을 채우는 시간을 가져 보세요. ${y.name} 곁에서 회복이 빨라요.`);
+    if (!fills.length && a.yongsin.yongsin === b.yongsin.yongsin) add(weakP('element'), '서로 채우기', `두 사람 모두 ${elName(a.yongsin.yongsin)} 기운이 필요한데 서로에게 많지 않아요. "${DATE_ACTS[a.yongsin.yongsin][0]}", "${DATE_ACTS[a.yongsin.yongsin][1]}"처럼 그 기운을 함께 채우는 데이트를 자주 해 보세요.`);
+    else if (!fills.length) add(weakP('element'), '서로 채우기', `서로에게 필요한 기운이 달라요(${na} ${a.yongsin.yongsin}, ${nb} ${b.yongsin.yongsin}). ${josa(`"${DATE_ACTS[a.yongsin.yongsin][1]}"`, '과/와')} ${josa(`"${DATE_ACTS[b.yongsin.yongsin][1]}"`, '을/를')} 번갈아 하는 데이트로 둘 다 채워 보세요.`);
+
+    // 성격(일간)
+    if (a.dayMaster.element === b.dayMaster.element) add(weakP('stem') + 4, '성격', SAME_EL_ADVICE[a.dayMaster.element]);
+    else if (st.score <= 50) add(weakP('stem'), '성격', `기질이 부딪히는 조합이에요(${a.dayMaster.hanja}·${b.dayMaster.hanja}). ${na}에게는 ${josa(pa.stem[1], '을/를')}, ${nb}에게는 ${josa(pb.stem[1], '을/를')} 피하는 것만으로도 다툼이 훨씬 짧아져요.`);
+    else add(weakP('stem') - 5, '성격', '서로의 기질 차이를 "틀림"이 아닌 "다름"으로 받아들이세요. 중요한 결정은 한 사람이 몰아가지 말고 함께 정하세요.');
+
+    // 신강약 조합
+    const sa = a.strength.strong, sb = b.strength.strong;
+    if (sa && sb) add(36, '힘의 균형', `둘 다 자기 힘이 센 사주라, 한 번은 ${na} 뜻대로, 한 번은 ${nb} 뜻대로 번갈아 정하는 규칙이 잘 맞아요.`);
+    else if (!sa && !sb) add(34, '힘의 균형', '둘 다 기댈 곳이 필요한 사주라, 힘든 시기에 서로만 바라보기보다 가족·친구의 도움도 함께 받으세요. 둘만 지치지 않는 게 중요해요.');
+    else { const [s, w] = sa ? [na, nb] : [nb, na]; add(34, '힘의 균형', `${josa(s, '이/가')} 추진력이 더 큰 편이라, 큰 결정에서는 ${w}의 속도를 한 번 더 확인해 주세요. ${josa(w, '은/는')} 원하는 걸 미루지 말고 말해 주세요.`); }
+
+    // 화해할 때: 각자 일간의 화해법 + 각자 기운을 채우는 장소
+    const place = (x, i) => DATE_ACTS[x.yongsin.yongsin][i];
+    const spot = (x, i) => josa(`"${place(x, i)}"`, '이/가');
+    if (a.dayMaster.stem === b.dayMaster.stem) add(44, '화해할 때', a.yongsin.yongsin === b.yongsin.yongsin
+      ? `두 사람 모두 같은 방식으로 풀려요 — ${pa.stem[2]}. 이야기할 장소는 "${place(a, 0)}"처럼 두 사람에게 필요한 ${elName(a.yongsin.yongsin)} 기운이 있는 곳이 좋아요.`
+      : `두 사람 모두 같은 방식으로 풀려요 — ${pa.stem[2]}. 다만 기운을 채우는 곳은 달라서, ${na}에게는 ${spot(a, 0)}, ${nb}에게는 ${spot(b, 0)} 잘 맞아요. 번갈아 가며 화해 장소로 써 보세요.`);
+    else add(44, '화해할 때', `${na}에게는 — ${pa.stem[2]}. 장소는 "${place(a, 0)}"처럼 ${elName(a.yongsin.yongsin)} 기운이 있는 곳이 좋아요. ${nb}에게는 — ${pb.stem[2]}. 장소는 ${spot(b, a.yongsin.yongsin === b.yongsin.yongsin ? 1 : 0)} 잘 맞아요.`);
+    // 서로를 대하는 법: 두 일간 사이의 십성 방향별
+    add(41, '서로를 대하는 법', ctx.godAB === ctx.godBA ? `서로에게 ${josa(ctx.godAB, '이라/라')}, 두 사람 모두 ${DB.GOD_TIP[ctx.godAB]}.` : `${josa(na, '은/는')} ${DB.GOD_TIP[ctx.godAB]}. ${josa(nb, '은/는')} ${DB.GOD_TIP[ctx.godBA]}.`);
+    // 자주 부딪히는 주제별 해법 (앞의 두 가지)
+    const tops = fightTopics(a, b, ctx).slice(0, 2).filter(t => DB.TOPIC_FIX[t[1]]);
+    if (tops.length) add(43, '자주 부딪히는 주제', tops.map(t => `${t[1]} — ${DB.TOPIC_FIX[t[1]]}`).join('. ') + '.');
+    // 말버릇 처방(Gottman): 두 사람 것을 한 문장으로
+    const toward = (h) => josa(h.name, '으로/로');
+    add(40, '말버릇 처방', pa.horse === pb.horse ? `두 사람 모두 ${toward(pa.horse)} 흐르기 쉬워요. ${pa.horse.fix}.`
+      : pa.horse.name === pb.horse.name ? `두 사람 모두 ${toward(pa.horse)} 흐르기 쉽지만 모습은 달라요. ${na}: ${pa.horse.fix.split('. ')[0]}. ${nb}: ${pb.horse.fix.split('. ')[0]}.`
+      : `${josa(na, '은/는')} ${pa.horse.name}, ${josa(nb, '은/는')} ${toward(pb.horse)} 흐르기 쉬워요. ${na}: ${pa.horse.fix.split('. ')[0]}. ${nb}: ${pb.horse.fix.split('. ')[0]}.`);
+    add(33, '갈등 유형', `${na}(${pa.mode}): ${DB.CONFLICT_MODE[pa.mode].tip}. ${nb}(${pb.mode}): ${DB.CONFLICT_MODE[pb.mode].tip}.`);
+
+    // 두 사주를 겹쳐 본 연결
+    const crHard = cr.filter(x => x.type !== 'good' && !x.weak);
+    if (cr.filter(x => x.type === 'good').length >= 2) add(32, '함께할 목표', '끌어당기는 연결이 여럿이라 같이 하는 일에서 힘이 나요. 1년에 하나, 둘이 함께 이룰 목표(여행, 저축, 운동)를 정해 보세요.');
+    if (crHard.some(x => x.day)) add(37, '속마음 지키기', '배우자 자리에 부딪히는 연결이 있어, 생활이 바빠지면 서운함이 쌓이기 쉬워요. 한 달에 한 번은 둘만의 데이트를 일정표에 먼저 넣어 두세요.');
+
+    // 시기 (하나만)
+    const nTiming = () => out.filter(o => ['약속하기 좋은 해', '함께 힘이 실리는 해', '조심할 해'].includes(o.title)).length;
+    if (timing.marry.length) add(30, '약속하기 좋은 해', `${timing.marry[0].year}년은 두 사람의 인연 기운이 함께 강해지는 해예요. 중요한 약속이나 계획은 이 해를 중심으로 세워 보세요.`);
+    if (timing.both.length && !nTiming()) add(30, '함께 힘이 실리는 해', `${timing.both.map(r => r.year).slice(0, 2).join('·')}년은 두 사람 모두 운이 순한 해라, 이사·여행·큰 계획을 함께 추진하기 좋아요.`);
+    if (timing.careful.length && !nTiming()) add(31, '조심할 해', `${timing.careful[0].year}년은 두 사람 모두 지치기 쉬운 해예요. 그해에는 큰 결정을 서두르지 말고, 서로의 컨디션을 먼저 챙겨 주세요.`);
+
+    // 나이 차이
+    const gap = Math.abs(a.birth.solarDate.year - b.birth.solarDate.year);
+    if (gap >= 6) { const [o, y] = a.birth.solarDate.year < b.birth.solarDate.year ? [na, nb] : [nb, na]; add(31, '나이 차이', `${gap}살 차이라 겪어 온 시대가 달라요. ${josa(o, '은/는')} 가르치기보다 묻고, ${josa(y, '은/는')} ${o}의 경험을 존중해 주면 서로에게 배울 게 많은 관계가 돼요.`); }
+
+    return out.sort((x, y) => y.p - x.p).slice(0, 6);
   }
 
   function readCompat(a, b, now = new Date()) {
@@ -1890,21 +2079,12 @@
     const cat = Object.fromEntries(cats.map(c => [c.key, c]));
     const timing = coupleTiming(a, b, Y);
     const yearList = (rows) => rows.map(r => `${r.year}년(${r.ganzhi})`).join(', ');
-    const ca = CONFLICT_STYLE[ga], cb = CONFLICT_STYLE[gb];
     const limits = [a, b].filter(x => !x.birth.hourKnown).map(x => x.name);
 
-    const ADVICE = {
-      stem: '서로의 기질 차이를 "틀림"이 아닌 "다름"으로 받아들이세요. 중요한 결정은 한 사람이 몰아가지 말고 함께 정하세요.',
-      day: '생활 습관(정리, 수면, 소비)에 대한 규칙을 미리 정해 두면 다툼이 크게 줄어들어요.',
-      talk: '서운한 일은 그날 안에, 짧게, "나는 ~해서 서운했어"라고 말하는 연습을 해 보세요.',
-      money: '수입·저축·용돈 비율을 숫자로 정해 두세요. 돈 이야기를 정기적으로 하는 커플이 오래가요.',
-      element: '서로에게 부족한 기운을 채우는 활동을 함께 늘려 보세요.',
-      star: '설렘보다 정으로 깊어지는 관계예요. 작은 이벤트와 표현으로 이성으로서의 긴장감을 지켜 주세요.',
-      rhythm: '주말·여행·집안일처럼 자주 부딪히는 주제는 미리 역할을 나눠 두세요.',
-      family: '양가 가족 문제에서는 각자 자기 가족을 설득하는 역할을 맡으세요.',
-    };
-    const weak = sorted.filter(c => c.score < 70).slice(-3).reverse();
-    const advice = weak.length ? weak.map(c => `${c.title}: ${ADVICE[c.key]}`) : ['지금처럼 서로의 장점을 자주 말로 표현해 주세요. 잘 맞는 관계일수록 익숙함에 소홀해지기 쉬워요.'];
+    const cr = crossRelations(a, b);
+    const ctx = { na, nb, godAB, godBA, dr, st, relDay, lead, talkA, talkB, ma, mb, ax, bx, dirs, cat, timing, cr, Y };
+    const adv = adviceList(a, b, ctx);
+    const advice = adv.map(x => `${x.title}: ${x.text}`);
 
     const sections = [
       section('compat-main', `${na} ♥ ${nb}`, `${grade} (${total}점)`, [
@@ -1924,7 +2104,7 @@
         cat.star.text,
       ], [...cat.stem.why, ...cat.star.why]),
       (() => {
-        const cr = crossRelations(a, b), strong = cr.filter(x => !x.weak);
+        const strong = cr.filter(x => !x.weak);
         const goods = strong.filter(x => x.type === 'good'), mixed = strong.filter(x => x.type === 'mixed'), hards = strong.filter(x => x.type === 'hard');
         return section('compat-cross', '두 사주를 겹쳐 보면',
           cr.length ? [`끌어당기는 연결 ${goods.length}곳`, mixed.length ? `끌리면서 부딪히는 연결 ${mixed.length}곳` : null, `부딪히는 연결 ${hards.length}곳`].filter(Boolean).join(', ') : '여덟 글자끼리 특별히 얽히는 곳이 없어요',
@@ -1955,13 +2135,7 @@
         `돈과 가치관: ${cat.money.text}`,
         `양가 가족: ${cat.family.text}`,
       ], [...cat.day.why, ...cat.money.why, ...cat.family.why]),
-      section('compat-fight', '다툴 때', `${josa(na, '은/는')} ${ca[0].split('.')[0]}, ${josa(nb, '은/는')} ${cb[0].split('.')[0]}`, [
-        `${na}의 갈등 방식: ${ca[0]}`,
-        `${nb}의 갈등 방식: ${cb[0]}`,
-        `${josa(na, '과/와')} 화해하려면: ${josa(ca[1], '이/가')} 가장 효과적이에요.`,
-        `${josa(nb, '과/와')} 화해하려면: ${josa(cb[1], '이/가')} 가장 효과적이에요.`,
-        dr.type === '충' || st.score <= 45 ? '이 커플은 부딪히는 기운이 있어 다툼이 잦을 수 있어요. 대신 그만큼 서로를 강하게 의식한다는 뜻이기도 해요. "싸우지 않기"보다 "잘 싸우는 규칙"을 만드세요.' : null,
-      ], [`갈등 방식은 각자 가장 강한 십성 묶음(${na} ${ga}, ${nb} ${gb})의 스트레스 반응으로 봤습니다.`, `${na}의 스트레스 요인: ${GROUP_PERSONA[ga].stress} / ${nb}: ${GROUP_PERSONA[gb].stress}`]),
+      fightSection(a, b, ctx),
       section('compat-fill', '서로를 채워 주는 점', cat.element.verdict, compText.length ? compText : [cat.element.text], cat.element.why),
       section('compat-timing', '함께하는 시기', timing.marry.length ? `${timing.marry[0].year}년이 약속하기 좋은 해예요.` : timing.both.length ? `${timing.both[0].year}년에 함께 힘이 실려요.` : '앞으로 몇 년은 함께 다지는 시기예요.', [
         timing.both.length ? `함께 좋은 해: ${yearList(timing.both)}. 두 사람 모두 운이 순한 해라 이사, 여행, 큰 계획을 함께 추진하기 좋아요.` : '함께 좋은 해: 앞으로 6년 안에 두 사람 모두 크게 좋은 해는 겹치지 않아요. 한 사람이 힘들 때 다른 사람이 받쳐 주는 구조예요.',
@@ -1982,8 +2156,9 @@
         '결혼하기 좋은 해: 각자의 인연·결혼 기운(배우자 별 유입, 배우자궁 합, 홍란·천희, 대운의 배우자 별)을 계산해 한 사람이 25점 이상이고 두 사람 합이 35점 이상, 두 사람 그해 운이 모두 42점 이상인 해.',
         `해마다 인연 기운: ${timing.rows.map(r => `${r.year} ${na} ${r.a.marry}·${nb} ${r.b.marry}`).join(' / ')}`,
       ]),
-      section('compat-advice', '두 사람을 위한 조언', weak.length ? `${weak[0].title}에 신경 쓰면 훨씬 좋아져요.` : '지금처럼만 지내면 좋아요.', advice, [
-        '점수가 낮은 항목부터 조언을 골랐습니다.',
+      section('compat-advice', '두 사람을 위한 조언', `${adv[0].title}에 신경 쓰면 훨씬 좋아져요.`, advice, [
+        '두 사람의 사주에서 해당하는 조언 후보(결혼 생활, 돈, 대화, 끌림, 생활 리듬, 결정권, 양가, 오행, 기질, 신강약, 말버릇, 시기, 나이 차이 등 30여 가지 규칙)를 모두 찾은 뒤, 점수가 낮은 항목과 관련된 것부터 여섯 가지를 골랐습니다.',
+        '말버릇 처방은 Gottman의 부부 연구, 갈등 유형은 Thomas-Kilmann 모델을 따랐습니다.',
       ]),
     ];
     if (boost) {

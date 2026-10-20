@@ -118,5 +118,19 @@ for (let k = 0; k < 30; k++) { const t = JSON.stringify(I.readCompat(M.applyMeth
   console.log(`풀이 다양성: 평균 공통 문장 ${Math.round(avg * 100)}%`);
 }
 
+// 궁합 조언·다툴 때 다양성: 이름을 고정해도 문장이 충분히 다양해야 한다 (2,000쌍에서 조언 500가지 이상, 다툴 때 500가지 이상)
+{
+  const adv = new Set(), fight = new Set();
+  for (let i = 0; i < 2000; i++) {
+    const c = I.readCompat({ ...M.applyMethod(S.analyzeSaju(randomPerson()), 'consensus', 2026), name: '가' }, { ...M.applyMethod(S.analyzeSaju(randomPerson()), 'consensus', 2026), name: '나' }, new Date(2026, 9, 20));
+    c.sections.find(x => x.id === 'compat-advice').paragraphs.forEach(p => adv.add(p.replace(/\d{4}/g, 'Y')));
+    c.sections.find(x => x.id === 'compat-fight').paragraphs.forEach(p => fight.add(p.replace(/\d{4}/g, 'Y')));
+    check('조언 6개', c.advice.length === 6, c.advice.length);
+  }
+  check('조언 다양성', adv.size >= 500, adv.size);
+  check('다툴 때 다양성', fight.size >= 500, fight.size);
+  console.log(`궁합 문장 다양성(2,000쌍): 조언 ${adv.size}가지, 다툴 때 ${fight.size}가지`);
+}
+
 console.log(`${total}건 중 실패 ${failed}건`);
 process.exit(failed ? 1 : 0);
