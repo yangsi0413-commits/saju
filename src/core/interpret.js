@@ -1598,7 +1598,7 @@
 
   // 운영자가 지정한 커플의 궁합 보정. 공개 저장소라 생년월일 대신 해시만 둔다
   // 키 = 'saju-pair:' + 두 사람의 (성별 + 입력 시각 'YYYY-MM-DD HH:mm')을 정렬해 '|'로 이은 값의 FNV-1a
-  const PAIR_BOOST = { '6feed57c': 15 };
+  const PAIR_BOOST = { '6feed57c': 11 };
   // 보정 커플에게는 같은 사실을 긍정적인 쪽으로 말한다 (사주에서 나온 내용 자체는 빼지 않는다)
   const WARM = [
     [/고집이 부딪히면 둘 다 물러서지 않을 수 있어요\./g, '고집이 부딪힐 때도 금방 서로의 마음을 알아채고 풀어 가는 사이예요.'],
@@ -1610,6 +1610,28 @@
     [/다만 (\S+)의 일간 자체가 배우자 별은 아니라 강한 끌림은 아닙니다\./g, '불꽃 같은 끌림보다는 은근하지만 오래가는 끌림입니다.'],
     [/식는 것도 빨라 꾸준함이 숙제예요\./g, '그 열정을 꾸준히 이어 가면 더 깊어지는 사랑이에요.'],
     [/함께 조심할 해:/g, '서로 더 챙겨 줄 해:'],
+    // 생활
+    [/(\S+?)(이|가) 주도하는 생활/g, '$1$2 이끌어 주는 생활'],
+    [/자리를 누르는 관계/g, '자리를 이끄는 관계'],
+    [/에서 (\S+?)(이|가) 주도권을 쥐기 쉬워요\. 결정권을 나눠 두면 좋습니다\./g, '에서 $1$2 든든하게 이끌어 주는 편이에요. 중요한 결정은 함께 나누면 더 좋아요.'],
+    [/무난한 오행 관계/g, '편안함을 주는 오행 관계'],
+    // 두 사주를 겹쳐 보면
+    [/끌리면서 부딪히는 연결/g, '끌리면서 자극하는 연결'],
+    [/부딪히는 연결 (\d+)곳/g, '서로 자극하는 연결 $1곳'],
+    [/부딪히는 연결이 더 많아 처음엔 서로 낯설 수 있지만, 그만큼 서로를 바꾸고 키우는 관계예요\./g, '서로를 자극하는 연결이 많아, 함께할수록 서로를 성장시키는 관계예요. 끌어당기는 연결이 그 자극을 단단한 정으로 바꿔 줘요.'],
+    [/끌리면서도 부딪혀요\. 가까워질수록 조율할 일이 생기지만,/g, '끌리면서도 서로를 자극해요. 가까워질수록 맞춰 갈 일이 생기지만,'],
+    [/의견이 부딪히기 쉽지만, 서로를 움직이게 하는 자극이 돼요/g, '서로 다른 의견이 오가며 서로를 움직이게 하는 좋은 자극이 돼요'],
+    [/작은 오해가 생길 수 있어요/g, '작은 오해도 대화로 금방 풀 수 있어요'],
+    [/괜한 서운함이 생기기 쉬워, 말로 확인하는 습관이 좋아요/g, '마음을 말로 표현해 줄수록 더 가까워져요'],
+    [/계획이 어긋나기 쉬워 미리 맞춰 두면 좋아요/g, '계획을 미리 함께 맞춰 두면 든든한 팀이 돼요'],
+    [/생각이 엇갈려 조율이 필요해요/g, '서로 다른 생각을 맞춰 가며 더 나은 답을 찾아요'],
+    // 해마다 흐름
+    [/둘 다 쉬어 가는 해 — 큰 결정보다 둘만의 시간을 늘리세요/g, '둘만의 시간을 늘리며 함께 쉬어 가기 좋은 해'],
+    [/받쳐 줄 해 — (\S+)의 컨디션과 고민을 먼저 챙겨 주세요/g, '받쳐 주며 더 가까워지는 해 — $1의 이야기를 먼저 들어 주세요'],
+    [/잔잔하게 흘러가는 해 — 일상의 루틴을 함께 다지기 좋아요/g, '잔잔하고 편안한 해 — 둘만의 일상을 차곡차곡 쌓기 좋아요'],
+    // 조언
+    [/다툼이 크게 줄어들어요\./g, '함께하는 생활이 훨씬 편안해져요.'],
+    [/^(\S+(?: \S+)?)에 신경 쓰면 훨씬 좋아져요\.$/, '$1만 조금 챙기면 더 행복해지는 사이예요.'],
     [/두 사람 모두 지치기 쉬운 해라 작은 일로 다툴 수 있어요\. 큰 결정은 미루고 서로를 챙겨 주세요\./g, '함께 속도를 조절하면 오히려 관계가 단단해지는 해예요. 큰 결정은 여유를 두고, 서로를 챙겨 주세요.'],
     [/앞으로 6년 안에 두 사람 모두 크게 좋은 해는 겹치지 않아요\. 한 사람이 힘들 때 다른 사람이 받쳐 주는 구조예요\./g, '두 사람의 좋은 해가 번갈아 찾아와, 한 사람이 힘들 때 다른 사람이 받쳐 주는 든든한 구조예요.'],
     [/앞으로 6년 안에는 두 사람의 인연 기운이 함께 강해지는 해가 없어요\. 시기보다 두 사람의 준비가 더 중요해요\./g, '특정한 해를 기다리기보다, 두 사람이 준비됐다고 느끼는 때가 가장 좋은 때예요.'],
@@ -1624,6 +1646,99 @@
     const key = [a, b].map(x => `${x.gender}${x.birth.clock}`).sort().join('|');
     return PAIR_BOOST[fnv1a(`saju-pair:${key}`)] || 0;
   };
+
+  // ---- 궁합 심화: 여덟 글자 전체 교차, 서로에게 주는 기운, 함께하는 활동 ----
+  const CROSS_AREA = { 년간: '사회적 얼굴', 년지: '집안·뿌리', 월간: '일하는 방식', 월지: '부모·성장 환경', 일간: '본성(나 자신)', 일지: '배우자 자리(속마음·생활)', 시간: '미래 계획', 시지: '자녀·노후' };
+  const CROSS_MEANING = {
+    합: '이 부분에서 서로 끌리고 손발이 잘 맞아요',
+    충: '이 부분에서 서로 강하게 자극해요. 부딪히기도 하지만, 관계가 정체되지 않게 하는 힘이기도 해요',
+    형: '이 부분은 생각이 엇갈리기 쉬워 조율이 필요해요',
+    원진: '이 부분에서 이유 없이 서운함이 생기기 쉬워, 말로 확인하는 습관이 좋아요',
+    해: '이 부분에서 작은 어긋남이 생길 수 있어요',
+    파: '이 부분에서 계획이 틀어지기 쉬워 미리 맞춰 두면 좋아요',
+  };
+  // 자리가 실제 생활에서 가리키는 주제 (중요한 순서)
+  const AREA_TOPIC = [['일지', '함께 사는 생활'], ['일간', '성격'], ['월지', '부모님·생활 기반'], ['월간', '일·사회생활'], ['시지', '자녀·노후'], ['시간', '미래 계획'], ['년지', '양가 집안'], ['년간', '대외적인 모습']];
+  // t가 있으면 "~ 문제에서"로 시작하고, 없으면(같은 줄 두 번째 관계) 내용만
+  const about = (t) => (t ? `${t} 문제에서 ` : '');
+  const TOPIC_SAY = {
+    good: (t) => `${about(t)}서로 잘 맞고 도움을 주고받아요`,
+    mixed: (t) => `${about(t)}끌리면서도 부딪혀요. 가까워질수록 조율할 일이 생기지만, 그만큼 깊게 얽혀 쉽게 멀어지지 않아요`,
+    충: (t) => `${about(t)}의견이 부딪히기 쉽지만, 서로를 움직이게 하는 자극이 돼요`,
+    형: (t) => `${about(t)}생각이 엇갈려 조율이 필요해요`,
+    원진: (t) => `${about(t)}괜한 서운함이 생기기 쉬워, 말로 확인하는 습관이 좋아요`,
+    해: (t) => `${about(t)}작은 오해가 생길 수 있어요`,
+    파: (t) => `${about(t)}계획이 어긋나기 쉬워 미리 맞춰 두면 좋아요`,
+  };
+  const relKind = (t) => (['천간합', '육합', '삼합', '반합', '방합'].includes(t) ? '합' : t === '천간충' ? '충' : t === '삼형' ? '형' : t);
+
+  function crossRelations(a, b) {
+    const items = [];
+    for (const [who, x] of [['A', a], ['B', b]]) for (const [k, l] of POS) if (x.pillars[k]) items.push({ label: `${who}${l}`, stem: x.pillars[k].stem, branch: x.pillars[k].branch });
+    const name = { A: a.name, B: b.name };
+    // 같은 자리끼리 맺은 관계(예: 申巳 합·형·파)는 한 줄로 묶는다. 같은 글자가 여러 자리에 있어도 한 번만 센다
+    const groups = new Map();
+    for (const r of E.findRelations(items)) {
+      if (!r.members.some(m => m[0] === 'A') || !r.members.some(m => m[0] === 'B')) continue;
+      const side = (w) => [...new Set(r.members.filter(m => m[0] === w).map(m => CROSS_AREA[m.slice(1)]))];
+      const pairKey = (r.name.match(/^[\u4e00-\u9fff]+/) || [r.name.split(' ')[0]])[0];   // 삼형은 '인사신 삼형'처럼 한글 이름
+      const g = groups.get(pairKey) || { pair: pairKey, A: new Set(), B: new Set(), pos: new Set(), kinds: [], names: [], weak: true, day: false };
+      side('A').forEach(x => g.A.add(x)); side('B').forEach(x => g.B.add(x));
+      r.members.forEach(m => g.pos.add(m.slice(1)));
+      const kind = relKind(r.type);
+      if (!g.kinds.includes(kind)) { g.kinds.push(kind); g.names.push(r.type.replace('천간', '')); }
+      g.weak = g.weak && !!r.weak;
+      g.day = g.day || r.members.some(m => m.slice(1) === '일지' || m.slice(1) === '일간');
+      groups.set(pairKey, g);
+    }
+    return [...groups.values()].map(g => {
+      const good = g.kinds.includes('합'), hard = g.kinds.some(k => k !== '합');
+      const type = good && hard ? 'mixed' : good ? 'good' : 'hard';
+      const topics = AREA_TOPIC.filter(([k]) => g.pos.has(k)).map(([, t]) => t).filter((t, i, l) => l.indexOf(t) === i).slice(0, 2);
+      const topic = topics.length === 2 ? `${josa(topics[0], '과/와')} ${topics[1]}` : topics[0];
+      const meaning = type === 'hard' ? g.kinds.map((k, i) => (TOPIC_SAY[k] || TOPIC_SAY.해)(i ? null : topic)).join('. 또 ')
+        : TOPIC_SAY[type](topic);
+      return { type, weak: g.weak, day: g.day,
+        text: `${name.A}의 ${[...g.A].join('·')} ↔ ${name.B}의 ${[...g.B].join('·')}: ${g.pair} ${g.names.join('·')}${g.weak ? '(약하게)' : ''} — ${meaning}.` };
+    }).sort((x, y) => (x.weak - y.weak) || (y.day - x.day) || (['good', 'mixed', 'hard'].indexOf(x.type) - ['good', 'mixed', 'hard'].indexOf(y.type)));
+  }
+
+  const GIVE_ROLE = {
+    비겁: ['친구이자 동료', '함께 있으면 힘이 나고, 무슨 일이든 같이 하면 든든해요'],
+    식상: ['재능과 표현을 끌어내 주는 사람', '곁에 있으면 말이 많아지고 아이디어가 샘솟아요'],
+    재성: ['현실 감각과 목표를 주는 사람', '함께하면 돈과 성과에 대한 의욕이 생겨요'],
+    관성: ['나를 다잡아 주는 사람', '책임감과 규칙을 일깨워 주고, 흐트러질 때 중심을 잡아 줘요'],
+    인성: ['나를 품어 주는 사람', '곁에 있으면 마음이 쉬고, 배우고 싶은 게 많아져요'],
+  };
+  function partnerGives(x, y) {
+    const pct = Object.fromEntries(GROUPS.map(g => [g, 0]));
+    for (const e of ELS) pct[GROUPS[(elIdx(e) - elIdx(dayEl(x)) + 5) % 5]] += y.elements.percent[e];
+    const top = GROUPS.slice().sort((p, q) => pct[q] - pct[p]);
+    const [g1, g2] = top, el1 = groupElement(x, g1), role = roleOf(x, el1);
+    const effect = favorableRole(role) ? `이 기운이 ${x.name}에게 꼭 필요한 ${role}이라, ${y.name} 곁에서 ${x.name}의 운이 살아나요.`
+      : isBadRole(role) ? `다만 이 기운이 ${x.name}에게는 ${josa(role, '이라/라')} 많으면 지칠 수 있어요. 혼자만의 시간을 존중해 주면 좋아요.`
+      : `${x.name}에게 무난한 기운이라 편안하게 주고받는 관계예요.`;
+    return {
+      title: GIVE_ROLE[g1][0],
+      line: `${x.name}에게 ${josa(y.name, '은/는')} ${josa(`"${GIVE_ROLE[g1][0]}"`, '이에요/예요')} — ${GIVE_ROLE[g1][1]}. ${effect}`,
+      why: `${y.name}의 오행을 ${x.name}의 일간(${x.dayMaster.hanja}) 기준 십성으로 바꾸면: ${GROUPS.map(g => `${g} ${Math.round(pct[g] * 10) / 10}%`).join(', ')} → 가장 큰 ${g1}(${el1}, ${x.name}에게 ${role}), 다음 ${g2}`,
+    };
+  }
+
+  // 오행별 데이트 (용신 기운을 채우는 활동)
+  const DATE_ACTS = {
+    목: ['숲길·공원 산책', '식물원이나 꽃시장 구경', '함께 새로운 걸 배우는 원데이 클래스'],
+    화: ['햇살 좋은 날 야외 데이트', '공연·축제 같이 가기', '땀 흘리는 운동 함께하기'],
+    토: ['맛집 탐방이나 같이 요리하기', '흙을 밟는 캠핑·텃밭 체험', '집 꾸미기·정리 같이 하기'],
+    금: ['전시회·공방 체험', '깔끔하고 조용한 카페 데이트', '악기나 노래 같이 배우기'],
+    수: ['바다·강가·호수 산책', '조용한 북카페에서 각자 책 읽기', '물가로 떠나는 짧은 여행'],
+  };
+  function togetherActs(a, b) {
+    const ea = a.yongsin.yongsin, eb = b.yongsin.yongsin, da = DATE_ACTS[ea], db = DATE_ACTS[eb];
+    const color = (e) => ELEMENT_INFO[e].color.split(/[,·]/)[0].trim();
+    if (ea === eb) return `두 사람 모두 ${elName(ea)} 기운이 필요해 같은 데이트가 둘 다에게 좋아요: ${da.join(', ')}. 함께 가기 좋은 방향은 ${ELEMENT_INFO[ea].direction}, 커플 아이템 색은 ${color(ea)}이에요.`;
+    return `${josa(a.name, '은/는')} ${elName(ea)}, ${josa(b.name, '은/는')} ${elName(eb)} 기운이 필요해요. "${da[0]}" 뒤에 "${db[0]}"처럼 두 사람의 기운을 하나씩 섞은 데이트가 둘 다에게 좋아요. 그 밖에 ${da[1]}, ${db[1]}도 추천해요. 커플 아이템은 ${color(ea)}과 ${color(eb)}을 함께 쓰면 좋아요.`;
+  }
 
   function readCompat(a, b, now = new Date()) {
     const na = a.name || 'A', nb = b.name || 'B';
@@ -1805,6 +1920,24 @@
         cat.stem.text,
         cat.star.text,
       ], [...cat.stem.why, ...cat.star.why]),
+      (() => {
+        const cr = crossRelations(a, b), strong = cr.filter(x => !x.weak);
+        const goods = strong.filter(x => x.type === 'good'), mixed = strong.filter(x => x.type === 'mixed'), hards = strong.filter(x => x.type === 'hard');
+        return section('compat-cross', '두 사주를 겹쳐 보면',
+          cr.length ? [`끌어당기는 연결 ${goods.length}곳`, mixed.length ? `끌리면서 부딪히는 연결 ${mixed.length}곳` : null, `부딪히는 연결 ${hards.length}곳`].filter(Boolean).join(', ') : '여덟 글자끼리 특별히 얽히는 곳이 없어요',
+          cr.length ? [
+            ...cr.slice(0, 7).map(x => x.text),
+            goods.length + mixed.length > hards.length ? `끌어당기는 연결이 더 많아, 시간이 갈수록 서로에게 스며드는 관계예요.` : hards.length > goods.length + mixed.length ? `부딪히는 연결이 더 많아 처음엔 서로 낯설 수 있지만, 그만큼 서로를 바꾸고 키우는 관계예요.` : '끌림과 자극이 균형을 이루는 관계예요.',
+          ] : ['두 사람의 글자 사이에 합이나 충이 없어, 서로에게 휘둘리지 않고 각자의 색을 지키며 만나는 관계예요.'],
+          ['두 사람의 년·월·일·시 기둥 여덟 글자를 모두 맞대어 천간합·충, 지지 육합·삼합·반합·방합·충·형·원진·해·파를 찾았습니다.',
+            '자리의 뜻: 년주 = 집안·뿌리, 월주 = 부모·일하는 방식, 일간 = 본성, 일지 = 배우자 자리, 시주 = 자녀·미래'].concat(limits.length ? [`${limits.join(', ')}님은 태어난 시간을 몰라 시주를 빼고 비교했어요.`] : []));
+      })(),
+      (() => {
+        const ga2 = partnerGives(a, b), gb2 = partnerGives(b, a);
+        return section('compat-give', '서로에게 어떤 기운을 주나', `${na}에게 ${josa(nb, '은/는')} ${ga2.title}, ${nb}에게 ${josa(na, '은/는')} ${gb2.title}`,
+          [ga2.line, gb2.line, `함께하면 좋은 것: ${togetherActs(a, b)}`],
+          [ga2.why, gb2.why, '상대 사주에 가장 많은 기운이 나에게 어떤 십성인지로, 그 사람이 내 삶에서 맡는 역할을 봅니다.']);
+      })(),
       section('compat-love', '연애할 때', cat.talk.verdict, [
         `${na}의 연애: ${STEM_PERSONA[a.dayMaster.stem].love}`,
         `${nb}의 연애: ${STEM_PERSONA[b.dayMaster.stem].love}`,
@@ -1830,6 +1963,15 @@
       section('compat-timing', '함께하는 시기', timing.marry.length ? `${timing.marry[0].year}년이 약속하기 좋은 해예요.` : timing.both.length ? `${timing.both[0].year}년에 함께 힘이 실려요.` : '앞으로 몇 년은 함께 다지는 시기예요.', [
         timing.both.length ? `함께 좋은 해: ${yearList(timing.both)}. 두 사람 모두 운이 순한 해라 이사, 여행, 큰 계획을 함께 추진하기 좋아요.` : '함께 좋은 해: 앞으로 6년 안에 두 사람 모두 크게 좋은 해는 겹치지 않아요. 한 사람이 힘들 때 다른 사람이 받쳐 주는 구조예요.',
         timing.careful.length ? `함께 조심할 해: ${yearList(timing.careful)}. 두 사람 모두 지치기 쉬운 해라 작은 일로 다툴 수 있어요. 큰 결정은 미루고 서로를 챙겨 주세요.` : '함께 조심할 해: 두 사람이 동시에 크게 흔들리는 해는 보이지 않아요.',
+        ...timing.rows.map(r => {
+          const [hi, lo] = r.a.score >= r.b.score ? [[na, r.a.score], [nb, r.b.score]] : [[nb, r.b.score], [na, r.a.score]];
+          const mood = r.a.score >= 55 && r.b.score >= 55 ? '함께 힘이 실리는 해 — 여행·이사·큰 계획을 같이 세워 보세요'
+            : hi[1] >= 55 && lo[1] < 50 ? `${josa(hi[0], '이/가')} ${josa(lo[0], '을/를')} 받쳐 줄 해 — ${lo[0]}의 컨디션과 고민을 먼저 챙겨 주세요`
+            : r.a.score < 50 && r.b.score < 50 ? '둘 다 쉬어 가는 해 — 큰 결정보다 둘만의 시간을 늘리세요'
+            : '잔잔하게 흘러가는 해 — 일상의 루틴을 함께 다지기 좋아요';
+          const love = Math.max(r.a.marry, r.b.marry) >= 25 ? ' · 인연 기운이 강한 해' : '';
+          return `${r.year}년(${r.ganzhi}): ${na} ${r.a.score}점 · ${nb} ${r.b.score}점 — ${mood}${love}`;
+        }),
         timing.marry.length ? `결혼·약속하기 좋은 해: ${yearList(timing.marry)}. ${timing.marry.slice(0, 2).map(r => `${r.year}년 — ${[...r.a.marryWhy.map(w => `${na}: ${w}`), ...r.b.marryWhy.map(w => `${nb}: ${w}`)].slice(0, 3).join(', ')}`).join(' / ')}` : '결혼·약속하기 좋은 해: 앞으로 6년 안에는 두 사람의 인연 기운이 함께 강해지는 해가 없어요. 시기보다 두 사람의 준비가 더 중요해요.',
       ], [
         `해마다 각자의 운 점수(세운 60% + 대운 40%)를 따로 계산해 겹쳐 봤습니다: ${timing.rows.map(r => `${r.year} ${na} ${r.a.score}·${nb} ${r.b.score}`).join(' / ')}`,
