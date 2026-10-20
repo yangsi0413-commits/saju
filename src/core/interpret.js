@@ -7,6 +7,8 @@
     ? require('./saju.js')
     : { STEMS, STEMS_HANJA, BRANCHES, BRANCHES_HANJA, ELEMENTS, tenGod, findRelations, getSeun, getWolun, getIljin, currentDaeun, compatibility, sinsal12 };
   const DB = typeof module !== 'undefined' && typeof require !== 'undefined' ? require('../data/myeongri.js') : root.Myeongri;
+  // 통계 DB(scripts/build-stats.js가 만든 분포·빈도). 없으면 통계 문장만 빠진다
+  const ST = typeof module !== 'undefined' && typeof require !== 'undefined' ? (() => { try { return require('../data/stats.js'); } catch { return null; } })() : root.SajuStats || null;
 
   // ============================================================
   // 1. 지식 데이터
@@ -647,6 +649,7 @@
       nextY.length ? `용신이 들어오는 해: ${nextY.join(', ')}` : null,
       nextG.length ? `기신 ${elName(y.gisin)}이 강해지는 해: ${nextG.join(', ')} — 무리하지 말고 지키는 쪽을 택하세요.` : null,
       `행운의 요소 — 색 ${info.color} · 방향 ${info.direction} · 숫자 ${info.numbers} · ${personaAxes(s)[0].value >= 50 ? '함께하는' : '혼자 하는'} 추천 활동: ${(personaAxes(s)[0].value >= 50 ? info.acts.split(', ').slice(-2) : info.acts.split(', ').slice(0, 2)).join(', ')}`,
+      (() => { const l = DB.LIFE_BY_EL[y.yongsin], ax = personaAxes(s); return `생활 속 용신: ${ax[0].value >= 50 ? `사람들과 함께 ${l.exercise.split('·')[0]}을 하거나` : `혼자 ${l.time}에`} "${l.habit}"을 지키고, ${ax[2].value >= 50 ? `책상·방은 ${l.space}으로 정돈해 두면` : `음식은 ${l.food}을 가까이하면`} ${elName(y.yongsin)} 기운이 채워집니다.`; })(),
       ...(y.johu && (y.methodId === 'eokbu' || !y.methodId) ? [`계절로 보면(조후) ${y.johu.reason.replace(' — ', '이라 ')}합니다.`] : []),
       ...y.notes.map(n => n + '.'),
     ];
@@ -686,6 +689,18 @@
       ]);
   }
 
+  // 돈 관리 스타일 × 신강약 → 맞춤 습관, 재물 기운의 계절
+  function moneyHabit(s) {
+    const ms = MONEY_STYLE(s), strong = s.strength.strong, jaeEl = groupElement(s, '재성');
+    const tip = {
+      저축형: strong ? '모으는 힘이 좋으니, 모은 돈의 일부는 공부한 곳에 굴려 보는 용기가 필요해요' : '안정 수입을 지키는 것이 최고의 재테크예요. 자동이체 저축이 잘 맞아요',
+      투자형: strong ? '큰 기회를 잡는 감각이 있지만, 들어가기 전에 손절 기준부터 정해 두세요' : '감당할 수 있는 금액 안에서만, 여러 곳에 나눠 두는 것이 필수예요',
+      씀씀이형: strong ? '사람에게 쓰는 돈이 결국 기회로 돌아오지만, 경조사·모임 예산은 따로 정해 두세요' : '남을 챙기다 내 몫을 놓치기 쉬워요. 월급날 저축부터 떼어 두세요',
+      가치형: strong ? '경험에 쓰는 돈이 재능을 키워 주지만, 비상금 3개월 치는 먼저 마련하세요' : '돈보다 의미를 좇는 편이라, 고정 지출을 줄여 두면 하고 싶은 일을 오래 할 수 있어요',
+    }[ms[0]];
+    return `돈 관리 스타일: ${ms[0]}(${ms[1]}) — ${tip}. 재물 기운(${jaeEl})이 강해지는 계절은 ${DB.LIFE_BY_EL[jaeEl].season}이라, 큰 계약이나 투자 결정은 이때 하면 좋아요.`;
+  }
+
   function readWealth(s) {
     const g = s.strength.groups, strong = s.strength.strong;
     const jaeEl = groupElement(s, '재성');
@@ -708,12 +723,23 @@
       ...st.map(x => `${x.id}: ${x.text}`),
       favorableRole(role) ? `재물을 뜻하는 ${josa(elName(jaeEl), '이/가')} 나의 ${role}입니다 — 돈을 벌수록 삶이 안정되는 구조입니다.` : role === '기신' || role === '구신' ? `재물을 뜻하는 ${josa(elName(jaeEl), '이/가')} 나의 ${role}입니다 — 돈을 좇을수록 지치기 쉬우니 무리한 확장은 피하세요.` : null,
       `재물 기운이 들어오는 해: ${nextYearsWith(s, jaeEl).join(', ') || '12년 안에 뚜렷하지 않음'}`,
+      moneyHabit(s),
     ];
     return section('wealth', '재물운', lead, paragraphs, [
       `일간 ${dayEl(s)} 기준으로 내가 극하는(다스리는) 오행 ${josa(jaeEl, '이/가')} [[재성]], 곧 재물입니다.`,
       `재성 비중 ${g.재성}% (정재 ${jeong}, 편재 ${pyeon}), 식상 ${g.식상}%, 비겁 ${g.비겁}%, 신강약 ${s.strength.level}, 재성 오행의 역할 ${role}.`,
       '재물은 재성이 어디에 얼마나 있는지, 감당할 힘(신강약)이 있는지, 재성을 돕거나 빼앗는 구조(식상생재·군겁쟁재 등)가 있는지를 함께 봅니다.',
     ]);
+  }
+
+  // 일하는 자리: 내 힘(신강약) × 주도 성향, 그리고 두 번째로 강한 기운의 보조 강점
+  function workSeat(s) {
+    const g = s.strength.groups, lead = personaAxes(s)[3].value >= 55;
+    const g2 = GROUPS.slice().sort((a, b) => g[b] - g[a])[1];
+    const seat = s.strength.strong
+      ? (lead ? '사람과 일을 이끄는 리더 자리에서 가장 힘이 납니다' : '맡은 분야를 혼자 책임지는 전문가 자리가 잘 맞습니다')
+      : (lead ? '좋은 조직과 동료의 뒷받침을 받으며 기획을 이끄는 자리가 잘 맞습니다' : '믿을 만한 팀 안에서 핵심 실무를 맡을 때 실력이 가장 잘 드러납니다');
+    return `일하는 자리: ${s.strength.level}이고 ${lead ? '주도하는' : '맞춰 가는'} 성향이라 ${seat}. 보조 강점은 ${g2}(${GROUP_INFO[g2].careers.split(', ').slice(0, 2).join(', ')})입니다.`;
   }
 
   function readCareer(s) {
@@ -732,8 +758,11 @@
         `격국 ${gk.name}: ${GYEOK_INFO[gk.tenGod]}`,
         ...monthChars.map(c => `${placeText(c)}: ${posMeaning(c)}`),
         ...st.map(x => `${x.id}: ${x.text}`),
+        `두 기운이 만나는 일(가장 강한 ${top} × 용신 ${y}): ${DB.CAREER_COMBO[top][y]} — 내가 잘하는 방식으로, 나에게 필요한 기운을 채우는 일이라 오래 해도 지치지 않습니다.`,
+        workSeat(s),
         `가장 강한 ${top}의 분야: ${GROUP_INFO[top].careers}`,
         `용신 ${elName(y)}의 분야: ${ELEMENT_INFO[y].careers}`,
+        `일에 힘이 실리는 해: ${nextYearsWith(s, y).join(', ') || '12년 안에 뚜렷하지 않음'}`,
       ],
       [
         `격국은 태어난 달(월지 ${E.BRANCHES_HANJA[p.month.branch]})에 숨은 천간 중 ${gk.transparent ? `겉으로 드러난(투출한) ${gk.baseStem}` : `대표 천간(정기) ${gk.baseStem}`}의 십성(${gk.tenGod})으로 정했습니다.`,
@@ -930,6 +959,11 @@
     const seasonNote = { 여름: '열이 오르기 쉬워 수분 보충과 더위 관리', 겨울: '몸이 차기 쉬워 보온과 혈액순환', 봄: '기운이 위로 뻗쳐 긴장과 근육 피로 풀기', 가을: '건조해지기 쉬워 호흡기와 피부 보습' }[season];
     const st = seasonState(s);
     const weakBody = ['신약', '극신약', '중화신약'].includes(s.strength.level);
+    const weakest = ELS.slice().sort((a, b) => percent[a] - percent[b])[0], life = DB.LIFE_BY_EL[weakest];
+    paragraphs.push(`채우는 습관: 가장 약한 기운이 ${elName(weakest)}(${percent[weakest]}%)이라, 음식은 ${life.food}, 운동은 ${life.exercise}, 그리고 ${josa(life.time, '을/를')} 잘 보내는 것이 도움이 됩니다.`);
+    paragraphs.push(`체질의 중심: 일간 ${s.dayMaster.hanja}(${s.dayMaster.element})는 ${ELEMENT_INFO[s.dayMaster.element].organ.split('·').slice(0, 2).join('·')}과 연결돼, 무리하면 이쪽 신호가 가장 먼저 옵니다.`);
+    const tired = nextYearsWith(s, s.yongsin.gisin, 2, false);
+    if (tired.length) paragraphs.push(`몸이 지치기 쉬운 해: ${tired.join(', ')} — 나에게 부담이 되는 ${elName(s.yongsin.gisin)} 기운이 강해지는 해라, 건강검진과 휴식을 미리 챙기세요.`);
     paragraphs.push(`${season}에 태어난 ${s.dayMaster.text}${s.dayMaster.element}(계절의 힘 '${st}'): ${seasonNote}가 기본이고, ${st === '사' || st === '수' ? '계절에 눌리는 체질이라 무리한 일정이 몸에 바로 드러납니다' : st === '왕' ? '타고난 체력이 좋아 오히려 과신하다 탈이 나기 쉽습니다' : weakBody ? '기운이 약한 편이라 회복에 시간이 걸려 수면이 가장 좋은 보약입니다' : '체력은 무난하지만 넘치는 기운을 운동으로 풀어 주면 좋습니다'}.`);
     return section('health', '건강', concerns.size ? `${[...concerns].map(e => ELEMENT_INFO[e].organ.split('·')[0]).join(', ')} 관리에 신경 쓰면 좋습니다.` : `오행이 고른 편이라, ${season}생의 계절 관리만 챙기면 됩니다.`,
       paragraphs, [
@@ -980,6 +1014,71 @@
       ['글자끼리는 서로 끌어당기기도([[합]]) 부딪히기도([[충]]) 합니다. 어느 기둥 사이에서 일어나는지에 따라 영향을 받는 사람과 시기가 달라집니다.', ...Object.values(POSITION_INFO)]);
   }
 
+  // ============================================================
+  // 통계로 본 위치: "상위 N%", "N명 중 1명"
+  // ============================================================
+  // 값 v가 분포 key에서 하위 몇 %인가 (0~100)
+  const pctBelow = (key, v) => {
+    const q = ST && ST.cuts[key];
+    if (!q) return null;
+    let lo = 0;
+    while (lo < 100 && q[lo + 1] <= v) lo++;
+    // 같은 값이 여러 구간에 걸치면 가운데로
+    let hi = lo; while (hi > 0 && q[hi - 1] === v) hi--;
+    return Math.round((lo + hi) / 2);
+  };
+  // "상위 12%" / "하위 8%" / "중간쯤"
+  const standing = (key, v) => {
+    const b = pctBelow(key, v);
+    if (b == null) return null;
+    if (b >= 55) return `상위 ${Math.max(1, 100 - b)}%`;
+    if (b <= 45) return `하위 ${Math.max(1, b)}%`;
+    return '딱 중간쯤';
+  };
+  // 조합 빈도: 전체 중 비율과 "N명 중 1명"
+  const share = (table, key) => {
+    const m = ST && ST.counts[table];
+    if (!m) return null;
+    const total = Object.values(m).reduce((a, b) => a + b, 0), c = m[key] || 0;
+    if (!total) return null;
+    const r = c / total;
+    const pct = r >= 0.1 ? `${Math.round(r * 100)}%` : r >= 0.01 ? `${Math.round(r * 1000) / 10}%` : `${Math.round(r * 10000) / 100}%`;
+    return { r, pct, one: c ? Math.max(1, Math.round(1 / r)).toLocaleString('ko-KR') : null, rare: r < 0.02 ? '드문' : r < 0.06 ? '흔치 않은' : '흔한' };
+  };
+  // 같은 묶음 안에서의 비율: within('stem×yongsin', '4|', '4|수') → 戊일간 중 용신이 수인 비율
+  const within = (table, prefix, key) => {
+    const m = ST && ST.counts[table];
+    if (!m) return null;
+    const total = Object.entries(m).filter(([k]) => k.startsWith(prefix)).reduce((a, [, v]) => a + v, 0);
+    return total ? `${Math.round((m[key] || 0) / total * 1000) / 10}%` : null;
+  };
+  // 분포에서 값이 x 이하인 사람의 비율(%)
+  const atMost = (key, x) => { const q = ST && ST.cuts[key]; if (!q) return null; let i = 0; while (i < 100 && q[i + 1] <= x) i++; return q[0] > x ? 0 : i; };
+  const statWhy = () => (ST ? `통계: ${ST.range} 출생 시각을 ${ST.step} 간격으로 모두 계산한 ${ST.people.toLocaleString('ko-KR')}명(서로 다른 여덟 글자 ${ST.uniqueCharts.toLocaleString('ko-KR')}가지)의 분포와 비교했습니다.` : null);
+  const addStat = (sec, lines) => { const l = lines.filter(Boolean); if (!l.length) return sec; sec.paragraphs.push(...l.map(fixJosa)); const w = statWhy(); if (w && !sec.why.includes(w)) sec.why.push(w); return sec; };
+
+  function statsFull(s, secs) {
+    if (!ST) return secs;
+    const by = Object.fromEntries(secs.map(x => [x.id, x])), g = s.strength.groups, p = s.pillars, y = s.yongsin.yongsin;
+    const combo = share('ilju×gyeok×yongsin', `${p.day.hanja}|${s.gyeokguk.name}|${y}`);
+    if (by.chart && combo) addStat(by.chart, [`통계로 본 내 사주: ${p.day.hanja} 일주 × ${s.gyeokguk.name} × 용신 ${y}의 조합은 전체의 ${combo.pct}${combo.one ? `(약 ${combo.one}명 중 1명)` : ''}로 ${combo.rare} 조합입니다.`]);
+    const top = ELS.slice().sort((a, b) => s.elements.percent[b] - s.elements.percent[a])[0];
+    const miss = s.elements.missing.length;
+    if (by.elements) addStat(by.elements, [
+      `가장 강한 ${elName(top)} ${s.elements.percent[top]}%는 전체 사주 중 ${standing(`el:${top}`, s.elements.percent[top])}입니다.`,
+      miss ? `${s.elements.missing.map(e => `${josa(elName(e), '이/가')} 없는 사주는 전체의 ${Math.round(ST.counts.missingEl[e] / ST.people * 1000) / 10}%`).join(', ')}이고, ${miss}개 이상 비어 있는 사주는 약 ${Math.max(1, 100 - atMost('missing', miss - 1))}%입니다.` : null,
+    ]);
+    const tg = GROUPS.slice().sort((a, b) => g[b] - g[a])[0];
+    if (by.tengods) addStat(by.tengods, [`가장 강한 ${tg} ${g[tg]}%는 전체 중 ${standing(`grp:${tg}`, g[tg])}이고, 가장 약한 ${GROUPS.slice().sort((a, b) => g[a] - g[b])[0]}은 ${standing(`grp:${GROUPS.slice().sort((a, b) => g[a] - g[b])[0]}`, g[GROUPS.slice().sort((a, b) => g[a] - g[b])[0]])}입니다.`]);
+    if (by.strength) addStat(by.strength, [`나를 돕는 기운 ${s.strength.score}점은 전체 사주 중 ${standing('strength', s.strength.score)}입니다${share('level', s.strength.level) ? ` (${s.strength.level}은 전체의 ${share('level', s.strength.level).pct})` : ''}.`]);
+    if (by.yongsin) { const ys = within('stem×yongsin', `${s.dayMaster.stem}|`, `${s.dayMaster.stem}|${y}`), yAll = share('yongsin', y); if (ys && yAll) addStat(by.yongsin, [`${s.dayMaster.hanja}일간 중 용신이 ${y}인 사람은 ${ys}, 전체 사주 중에서는 ${yAll.pct}입니다.`]); }
+    if (by.career) { const gs = share('gyeok', s.gyeokguk.name); const st = structures(s).filter(x => x.area === 'career')[0]; addStat(by.career, [gs ? `${josa(s.gyeokguk.name, '은/는')} 전체 사주의 ${gs.pct}, ${s.dayMaster.hanja}일간 중에서는 ${within('stem×gyeok', `${s.dayMaster.stem}|`, `${s.dayMaster.stem}|${s.gyeokguk.name}`)}입니다.` : null, st && share('structure', st.id) ? `${st.id} 구조를 가진 사람은 전체의 ${share('structure', st.id).pct}입니다.` : null]); }
+    if (by.wealth) addStat(by.wealth, [`재물의 기운(재성) ${g.재성}%는 전체 중 ${standing('grp:재성', g.재성)}, 재물을 만드는 재능(식상) ${g.식상}%는 ${standing('grp:식상', g.식상)}입니다.`]);
+    if (by.love) { const sp = analyzeSpouse(s); addStat(by.love, [`배우자운 지수 ${sp.index}점은 같은 성별 전체 중 ${standing(`spouse:${isMale(s) ? 'M' : 'F'}`, sp.index)}입니다.`]); }
+    if (by.sinsal) { const names = [...new Set(s.sinsal.map(x => x.name))].filter(n => share('sinsal', n)).slice(0, 4); const total = ST.people; if (names.length) addStat(by.sinsal, [`이 별들을 가진 사람의 비율: ${names.map(n => `${n} ${Math.round(ST.counts.sinsal[n] / total * 1000) / 10}%`).join(', ')}`]); }
+    return secs;
+  }
+
   function readFullSaju(s) {
     const y = s.yongsin;
     return {
@@ -992,10 +1091,10 @@
         ],
         line: `${STEM_INFO[s.dayMaster.stem].image}처럼 ${josa(STEM_INFO[s.dayMaster.stem].strength.split(', ')[0], '이/가')} 강점이며, ${elName(y.yongsin)} 기운을 가까이할 때 운이 열립니다.`,
       },
-      sections: [
+      sections: statsFull(s, [
         explainChart(s), readDayMaster(s), readIlju(s), readElements(s), readTenGods(s), readStrength(s), readYongsin(s),
         readPersonality(s), readWealth(s), readCareer(s), readLove(s), readHealth(s), readSinsal(s), readRelations(s),
-      ],
+      ]),
     };
   }
 
@@ -1177,7 +1276,11 @@
       months,
       events: luckEvents(s, lp),
       sections: [
-        section('year-main', `${year}년 한 해의 흐름`, `${year}년은 ${sc.score}점, ${luckBand(sc.score)} 해입니다 — ${godShort(s, lp.stemTenGod, lp.stemElement, sc.score)}.`, paragraphs, [
+        section('year-main', `${year}년 한 해의 흐름`, `${year}년은 ${sc.score}점, ${luckBand(sc.score)} 해입니다 — ${godShort(s, lp.stemTenGod, lp.stemElement, sc.score)}.`, [
+          ...paragraphs,
+          ST && ST.cuts.luck2026 ? `이 점수를 모든 사람의 한 해 운 점수와 비교하면 ${standing('luck2026', sc.score)}입니다. 같은 해라도 사람마다 받는 기운이 달라, 누군가에겐 순풍인 해가 누군가에겐 역풍이 됩니다.` : null,
+          (() => { const best = months.slice().sort((x, y) => y.score - x.score)[0], worst = months.slice().sort((x, y) => x.score - y.score)[0]; return `이 해에서 가장 좋은 달은 ${best.jie}부터의 ${best.hanja}월(${best.score}점), 가장 조심할 달은 ${worst.jie}부터의 ${worst.hanja}월(${worst.score}점)입니다.`; })(),
+        ], [
           `[[세운]]: ${year}년의 간지 ${lp.hanja}를 내 일간 ${s.dayMaster.hanja}과 비교했습니다. 천간은 한 해의 앞부분과 겉으로 드러나는 일, 지지는 뒷부분과 실제 생활을 주로 봅니다.`,
           ...sc.why,
           '사주의 새해는 양력 1월 1일이 아니라 입춘(2월 4일 무렵)부터이며, 달도 절기 기준입니다.',
@@ -1207,9 +1310,11 @@
     const curD = list.find(d => d.current);
     const next = curD ? list[list.indexOf(curD) + 1] : list[0];
     const sections = [
-      section('daeun-what', '대운이란?', `${s.daeun.daeunNum}세부터 10년마다 운이 바뀝니다.`, [
+      section('daeun-what', '대운이란?', curD ? `${s.daeun.daeunNum}세부터 10년마다 운이 바뀌고, 지금은 ${list.indexOf(curD) + 1}번째 대운(${curD.hanja})의 ${year - curD.startYear + 1}년째입니다.` : `${s.daeun.daeunNum}세(${list[0].startYear}년)부터 첫 대운이 시작됩니다.`, [
         '[[대운]]은 10년 단위로 바뀌는 인생의 큰 계절입니다. 같은 사주라도 어떤 대운을 지나느냐에 따라 삶의 분위기가 달라집니다.',
-        '대운의 앞 5년은 천간, 뒤 5년은 지지의 영향을 더 받는다고 봅니다.',
+        curD ? `지금 대운은 ${year - curD.startYear < 5 ? `앞 5년(천간 ${E.STEMS_HANJA[curD.stem]}, ${curD.stemTenGod})의 영향이 큰 때라, ${TEN_GOD_INFO[curD.stemTenGod].short}입니다` : `뒤 5년(지지 ${E.BRANCHES_HANJA[curD.branch]}, ${curD.branchTenGod})으로 넘어와, ${TEN_GOD_INFO[curD.branchTenGod].short}입니다`}.` : '대운의 앞 5년은 천간, 뒤 5년은 지지의 영향을 더 받는다고 봅니다.',
+        next ? `다음 교운기(대운이 바뀌는 해): ${next.startYear}년(${next.age}세) — ${curD ? `${curD.score}점에서 ${next.score}점으로 ${next.score - curD.score >= 8 ? '크게 오르는' : next.score - curD.score <= -8 ? '크게 내려가는' : '비슷하게 이어지는'} 흐름이라, ` : ''}바뀌기 전후 1~2년에는 이사·이직·관계 변화가 몰리기 쉬우니 큰 결정은 여유를 두고 하세요.` : null,
+        `${s.daeun.direction}하는 사주라 대운이 태어난 달(${s.pillars.month.hanja})에서 ${s.daeun.forward ? '앞으로' : '뒤로'} 한 칸씩 움직입니다. ${s.daeun.daeunNum <= 3 ? '첫 대운이 일찍 시작돼 어린 시절부터 환경 변화를 많이 겪는 편입니다.' : s.daeun.daeunNum >= 8 ? '첫 대운이 늦게 시작돼 어린 시절은 부모의 영향(태어난 달의 기운)을 오래 받습니다.' : '첫 대운이 평균적인 나이에 시작됩니다.'}`,
       ], [
         `${s.pillars.year.text}년생(${s.pillars.year.stemYinYang}년) ${isMale(s) ? '남성' : '여성'}이라 ${s.daeun.direction}합니다. 양년생 남성·음년생 여성은 순행, 반대는 역행입니다.`,
         `[[대운수]]: 태어난 때부터 ${s.daeun.forward ? '다음' : '이전'} 절기까지 ${s.daeun.daysToJie}일 ÷ 3 = ${s.daeun.startAgeExact} → ${s.daeun.daeunNum}세. 정확한 첫 대운 시작일은 ${s.daeun.startDate}입니다.`,
@@ -1221,6 +1326,9 @@
     const best = list.slice().sort((a, b) => b.score - a.score)[0];
     sections.push(section('daeun-best', '인생에서 가장 힘이 실리는 시기', `${best.age}세(${best.startYear}년~) ${best.hanja} 대운`, [
       `이 대운은 나에게 필요한 기운(${s.yongsin.yongsin}·${s.yongsin.huisin})이 강하게 들어오는 시기입니다. 중요한 도전이나 확장은 이 무렵에 맞추면 좋습니다.`,
+      `${best.age}~${best.age + 9}세는 ${DB.AGE_STAGE.filter(([a]) => a <= best.age + 5).pop()[1]}.`,
+      ...eventLines(luckEvents(s, best).filter(e => e.kind !== 'bad')).slice(0, 2).map(l => `이 10년에 ${l}`),
+      best.current ? '바로 지금이 그 시기입니다. 미뤄 둔 일을 시작하기 좋은 때예요.' : best.startYear > year ? `앞으로 ${best.startYear - year}년 뒤에 옵니다. 그때를 위해 지금은 실력과 사람을 쌓아 두세요.` : `이미 지나온 시기예요. 그때 쌓은 것이 지금의 바탕이 됐을 거예요.`,
     ], luckScore(s, best).why));
     return { list, sections };
   }
@@ -1472,7 +1580,7 @@
       section('p-value', '가치관 — 내가 가장 중요하게 여기는 것', `${gp1.value}, 그리고 ${sp.value.split(' — ')[0]}`, [
         `우선순위: ${josa(gp1.value, '이/가')} 먼저, ${josa(gp2.value, '이/가')} 그다음입니다 — ${g1}(${g[g1]}%)과 ${g2}(${g[g2]}%)가 가장 강한 사주라, ${VALUE_MIX[g1 + g2] || `${gp1.value}을(를) 지키면서 ${gp2.value}을(를) 함께 채울 때 만족이 큽니다`}.`,
         `타고난 바탕(${d.text}${d.element})이 원하는 것: ${sp.value}.`,
-        `반대로 ${gp1.stress} 가장 크게 흔들립니다.`,
+        `반대로 ${gp1.stress} 가장 크게 흔들리고, 두 번째로 강한 ${g2}의 영향으로 ${gp2.stress.replace(/때$/, '때도')} 마음이 쓰입니다.`,
       ], [
         why2,
         `두 번째로 강한 십성 묶음 ${g2}(${g[g2]}%)`,
@@ -1481,6 +1589,7 @@
       section('p-stress', '스트레스와 회복법', `${gp1.stress}, 그리고 ${{ 비겁: '남과 비교당할 때', 식상: '말을 참아야 할 때', 재성: '성과를 재촉받을 때', 관성: '평가받을 때', 인성: '쉴 틈이 없을 때' }[GOD_GROUP[p.month.branchTenGod]]} 스트레스를 받아요.`, [
         `스트레스 신호: 평소의 약점(${STEM_INFO[d.stem].weakness.split(', ')[0]}, ${gp1.weaknesses[0]})이 유난히 두드러진다면 지쳤다는 뜻입니다.`,
         `환경에서 오는 압박(월지 ${p.month.branchTenGod}): ${{ 비겁: '경쟁과 비교', 식상: '하고 싶은 말을 참아야 하는 상황', 재성: '성과·돈에 대한 압박', 관성: '평가와 책임', 인성: '생각할 틈 없이 몰아치는 일정' }[GOD_GROUP[p.month.branchTenGod]]}에 특히 지치기 쉽습니다.`,
+        `${d.hanja}일간("${sp.nick}")의 회복법: ${DB.STEM_RECOVER[d.stem]}.`,
         `회복 방식: ${s.strength.strong ? '넘치는 힘을 밖으로 풀어야 회복되는' : '기운을 채워야 회복되는'} ${axes[0].value >= 60 ? '외향' : axes[0].value <= 40 ? '내향' : '균형'}형이라, ${s.strength.strong ? (axes[0].value >= 60 ? '사람들과 함께 땀 흘리는 운동이나 모임' : '혼자 몰입할 수 있는 운동이나 작업') : (axes[0].value >= 60 ? '믿는 사람과의 수다와 맛있는 식사' : '충분한 잠과 혼자만의 조용한 시간')}이 가장 빨리 회복시켜 줍니다. 여기에 ${elName(s.yongsin.yongsin)} 기운의 활동(${ELEMENT_INFO[s.yongsin.yongsin].acts.split(', ').slice(0, 2).join(', ')})을 더하면 좋아요.`,
       ], [
         `스트레스 원인은 가장 강한 기운(${g1})이 막힐 때 생깁니다.`,
@@ -1488,6 +1597,14 @@
       ]),
     ];
 
+    if (ST) {
+      const ts = share('type', `${d.stem}|${g1}`);
+      const who = sections.find(x => x.id === 'p-who');
+      addStat(who, [
+        ts ? `"${typeName}" 유형은 전체 사주의 ${ts.pct}${ts.one ? `(약 ${ts.one}명 중 1명)` : ''}입니다.` : null,
+        `성향 지표를 전체와 비교하면: ${axes.map((a, i) => { const b = pctBelow(`axis:${['외향', '감성', '계획', '주도'][i]}`, a.value); return b == null ? null : a.value >= 50 ? `${a.right} 쪽으로 상위 ${Math.max(1, 100 - b)}%` : `${a.left} 쪽으로 상위 ${Math.max(1, b)}%`; }).filter(Boolean).join(', ')}.`,
+      ]);
+    }
     return {
       typeName,
       oneLine: `${sp.nick}의 기질에 ${gp1.title}의 성향을 가진 사람. ${josa(gp1.value, '을/를')} 무엇보다 중요하게 여깁니다.`,
@@ -1799,6 +1916,7 @@
       sameStem ? null : `${josa(nb, '이/가')} 화날 때: ${pb.stem[0]}.`,
       pa.mode === pb.mode ? `다툼에서는 두 사람 모두 ${DB.CONFLICT_MODE[pa.mode].desc} ${pa.mode}이에요.` : `다툼에서 ${josa(na, '은/는')} ${DB.CONFLICT_MODE[pa.mode].desc} ${pa.mode}, ${josa(nb, '은/는')} ${DB.CONFLICT_MODE[pb.mode].desc} ${pb.mode}이에요.`,
       `두 사람의 조합: ${DB.MODE_PAIR[key]}`,
+      ST && share('mode', pa.mode) && share('mode', pb.mode) ? `갈등 유형의 비율(전체 사주 기준): ${pa.mode} ${share('mode', pa.mode).pct}${pb.mode !== pa.mode ? `, ${pb.mode} ${share('mode', pb.mode).pct}` : ''}` : null,
       godAB === godBA ? `서로를 보는 눈(서로 ${godAB}): ${DB.GOD_FRICTION[godAB]}.`
         : `서로를 보는 눈: ${na}에게 ${josa(nb, '은/는')} ${godAB} — ${DB.GOD_FRICTION[godAB]}. ${nb}에게 ${josa(na, '은/는')} ${godBA} — ${DB.GOD_FRICTION[godBA]}.`,
       topics.length ? `잘 부딪히는 주제: ${topics.map(t => t[0]).join(', ')}` : '잘 부딪히는 주제: 두 사람 사이에 뚜렷하게 반복되는 갈등 주제는 보이지 않아요.',
@@ -2086,6 +2204,10 @@
     const limits = [a, b].filter(x => !x.birth.hourKnown).map(x => x.name);
 
     const cr = crossRelations(a, b);
+    const compatStat = ST ? [
+      `이 점수는 무작위로 맺은 남녀 ${ST.pairs.toLocaleString('ko-KR')}쌍 가운데 ${standing('compat', total)}입니다.`,
+      (() => { const best = cats.slice().sort((x, y) => (100 - pctBelow(`compat:${x.key}`, x.score)) - (100 - pctBelow(`compat:${y.key}`, y.score)))[0]; const b = pctBelow(`compat:${best.key}`, best.score); return b >= 55 ? `특히 ${best.title}(${best.score}점)는 다른 커플들과 비교해 상위 ${Math.max(1, 100 - b)}%로, 이 커플의 가장 큰 강점입니다.` : null; })(),
+    ] : [];
     const ctx = { na, nb, godAB, godBA, dr, st, relDay, lead, talkA, talkB, ma, mb, ax, bx, dirs, cat, timing, cr, Y };
     const adv = adviceList(a, b, ctx);
     const advice = adv.map(x => `${x.title}: ${x.text}`);
@@ -2096,6 +2218,7 @@
         `${nb}: "${STEM_PERSONA[b.dayMaster.stem].nick}" 같은 ${GROUP_PERSONA[gb].title}`,
         good.length ? `잘 맞는 점: ${good.slice(0, 3).join(' / ')}` : null,
         caution.length ? `조심할 점: ${caution.slice(0, 3).join(' / ')}` : null,
+        ...compatStat,
         limits.length ? `분석의 한계: ${limits.join(', ')}의 태어난 시간을 몰라 시주를 빼고 계산했어요. 오행 보완과 성향 비교의 정확도가 조금 낮아요.` : null,
       ], [
         `종합 점수는 8개 항목의 가중 평균입니다: ${cats.map(c => `${c.title} ${c.score}점×${c.weight}%`).join(', ')}`,
@@ -2326,6 +2449,15 @@
           cur?.dae ? `지금 대운: ${cur.dae.age}세부터 ${cur.dae.hanja}(${cur.dae.text}) — 10년의 큰 흐름은 ${TEN_GOD_INFO[cur.dae.stemTenGod].short}입니다.` : null,
           cur ? `올해 세운: ${cur.seun.hanja}(${cur.seun.text}) — ${TEN_GOD_INFO[cur.seun.stemTenGod].short}입니다.` : null,
           cur ? `${josa(`올해 ${cur.score}점`, '은/는')} 인생 평균 ${Math.round(sorted.reduce((a, b) => a + b, 0) / sorted.length)}점보다 ${cur.score >= Math.round(sorted.reduce((a, b) => a + b, 0) / sorted.length) ? '높아 순풍' : '낮아 역풍'} 쪽입니다.` : null,
+          (() => {
+            const prev = points.find(p => p.year === Y - 1), nxt = points.find(p => p.year === Y + 1);
+            if (!cur || !prev || !nxt) return null;
+            const d1 = cur.score - prev.score, d2 = nxt.score - cur.score;
+            const shape = d1 >= 5 && d2 >= 5 ? '계속 오르는 오르막' : d1 <= -5 && d2 <= -5 ? '계속 내려가는 내리막' : d1 <= -5 && d2 >= 5 ? '바닥을 찍고 올라가는 반등 직전' : d1 >= 5 && d2 <= -5 ? '정점을 지나는 꼭대기' : '큰 기복 없이 이어지는 평지';
+            return `흐름의 모양: 작년 ${prev.score}점 → 올해 ${cur.score}점 → 내년 ${nxt.score}점으로, 지금은 ${shape}입니다.`;
+          })(),
+          cur ? `인생 전체 ${sorted.length}년 가운데 올해보다 점수가 높은 해는 ${sorted.filter(v => v > cur.score).length}년으로, 올해는 내 인생에서 ${Math.round(sorted.filter(v => v > cur.score).length / sorted.length * 100) <= 20 ? '손꼽히게 좋은' : Math.round(sorted.filter(v => v > cur.score).length / sorted.length * 100) >= 80 ? '손꼽히게 힘든' : '중간 정도의'} 해입니다.` : null,
+          cur ? (() => { const ev = luckEvents(s, cur.seun).filter(e => e.kind !== 'bad').slice(0, 2).map(e => e.text), bad = luckEvents(s, cur.seun).filter(e => e.kind === 'bad').slice(0, 1).map(e => e.text); return `올해의 핵심: ${ev.length ? `${ev.join(', ')}의 기회` : '큰 사건보다 차분한 흐름'}${bad.length ? `, 그리고 ${bad[0]}에 주의` : ''}.`; })() : null,
         ],
         [
           '[[인생그래프]]: 해마다 세운(1년 운) 60% + 대운(10년 운) 40%로 계산했습니다.',
@@ -2358,7 +2490,7 @@
     return { points, current: Y, hardCut, goodCut, periods: { hard, good }, months, sections };
   }
 
-  const api = { GLOSSARY, ELEMENT_INFO, STEM_INFO, TEN_GOD_INFO, GROUP_INFO, STAGE_INFO, SINSAL_INFO, RELATION_INFO, POSITION_INFO, SAENG, GEUK, readFullSaju, readPersona, readToday, readYear, readDaeun, readCompat, compareCompat, readLifeFlow, analyzeSpouse, marriageYears, spouseTiming, luckScore, yearScore, categories, luckyItems, personaAxes, STEM_PERSONA, GROUP_PERSONA, fixJosa, josa };
+  const api = { standing, share, workSeat, moneyHabit, structures, conflictProfile, GLOSSARY, ELEMENT_INFO, STEM_INFO, TEN_GOD_INFO, GROUP_INFO, STAGE_INFO, SINSAL_INFO, RELATION_INFO, POSITION_INFO, SAENG, GEUK, readFullSaju, readPersona, readToday, readYear, readDaeun, readCompat, compareCompat, readLifeFlow, analyzeSpouse, marriageYears, spouseTiming, luckScore, yearScore, categories, luckyItems, personaAxes, STEM_PERSONA, GROUP_PERSONA, fixJosa, josa };
   if (typeof module !== 'undefined') module.exports = api;
   else root.Interpret = api;
 })(typeof window !== 'undefined' ? window : globalThis);

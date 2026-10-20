@@ -6,6 +6,7 @@
   const E = node ? require('./saju.js') : { STEMS_HANJA, BRANCHES, BRANCHES_HANJA, getSeun, getWolun, getIljin, currentDaeun, sinsal12 };
   const I = node ? require('./interpret.js') : root.Interpret;
   const M = node ? require('./methods.js') : root.Methods;
+  const DB = node ? require('../data/myeongri.js') : root.Myeongri;
 
   const GOD = { 비견: '비겁', 겁재: '비겁', 식신: '식상', 상관: '식상', 편재: '재성', 정재: '재성', 편관: '관성', 정관: '관성', 편인: '인성', 정인: '인성' };
   const isMale = (s) => s.gender === 'M' || s.gender === '남';
@@ -148,7 +149,13 @@
     const label = TOPICS.find(x => x.id === topic).label;
     const groups = topicGroups(s, topic);
     const groupText = groups.length ? `${groups.join('·')}` : '';
-    const out = { topic, title: `${label}에 대한 답변`, points: [], advice: TOPIC_ADVICE[topic] || [], why: [], links: [] };
+    const g = s.strength.groups, topG = Object.keys(g).sort((a, b) => g[b] - g[a])[0];
+    const mine = {
+      career: [`나에게 맞는 일(가장 강한 ${topG} × 용신 ${s.yongsin.yongsin}): ${DB.CAREER_COMBO[topG][s.yongsin.yongsin]}.`, plain(I.workSeat(s))],
+      business: [`사업 분야는 ${DB.CAREER_COMBO[topG][s.yongsin.yongsin]} 쪽이 내 강점과 필요한 기운이 함께 맞아요.`, plain(I.moneyHabit(s))],
+      money: [plain(I.moneyHabit(s))],
+    }[topic] || [];
+    const out = { topic, title: `${label}에 대한 답변`, points: [], advice: [...mine, ...(TOPIC_ADVICE[topic] || []).slice(0, mine.length ? 1 : 2)], why: [], links: [] };
     out.why.push(`${josa(label, '은/는')} ${groups.length ? `사주에서 ${groupText}의 기운으로 봅니다.` : '이동 관련 신살과 충으로 봅니다.'} 해마다 이 기운이 들어오는지, 그 기운이 나에게 필요한 기운(용신 ${s.yongsin.yongsin}·희신 ${s.yongsin.huisin})인지, 내 사주와 부딪히는지(충)를 함께 계산했습니다.`);
     out.why.push(`해석 기준: ${s.yongsin.method || '억부법'} (화면 위 '해석 방법'에서 바꿀 수 있어요)`);
     if (/(살|세)/.test(t.raw || '')) out.why.push('질문 속 나이는 한국식 세는 나이(태어난 해 1살)로 계산했습니다.');
@@ -234,11 +241,15 @@
     const worst = rows.slice().sort((a, b) => a.score - b.score).slice(0, 2).sort((a, b) => a.year - b.year);
     return {
       topic: 'health', title: '건강에 대한 답변', conclusion: plain(sec.lead),
-      points: [...sec.paragraphs.map(plain).slice(0, 4), `컨디션 관리가 특히 필요한 해: ${worst.map(r => `${r.year}년(${r.score}점)`).join(', ')}`],
-      advice: TOPIC_ADVICE.health, why: [...sec.why.map(plain), '운이 약한 해(기신이 들어오거나 충이 겹치는 해)는 몸과 마음이 지치기 쉬운 해로 봅니다.'],
+      points: [...sec.paragraphs.map(plain).filter(p => !/채우는 습관|체질의 중심/.test(p)).slice(0, 4), `컨디션 관리가 특히 필요한 해: ${worst.map(r => `${r.year}년(${r.score}점)`).join(', ')}`],
+      advice: [...sec.paragraphs.filter(p => /^채우는 습관|^체질의 중심/.test(p)).map(plain), ...TOPIC_ADVICE.health],
+      why: [...sec.why.map(plain), '운이 약한 해(기신이 들어오거나 충이 겹치는 해)는 몸과 마음이 지치기 쉬운 해로 봅니다.'],
       links: [{ menu: 'saju', label: '종합풀이 보기' }],
     };
   }
+
+  // 지표 값 → 표의 칸 (높음 0 · 균형 1 · 낮음 2)
+  const band = (v) => (v >= 60 ? 0 : v <= 40 ? 2 : 1);
 
   function answerPersonality(s) {
     const r = I.readPersona(s);
@@ -246,21 +257,35 @@
     return {
       topic: 'personality', title: '성격에 대한 답변', conclusion: `"${r.typeName}" — ${plain(r.oneLine)}`,
       points: [
+        `사람을 대할 때: "${I.STEM_PERSONA[s.dayMaster.stem].nick}"의 기질을 가진 ${DB.AXIS_PAIR.social[band(r.axes[0].value)][band(r.axes[1].value)]}`,
+        `일할 때: ${s.strength.level}인 ${DB.AXIS_PAIR.work[band(r.axes[2].value)][band(r.axes[3].value)]}`,
         ...r.axes.map(a => `${a.left}↔${a.right}: ${a.value >= 60 ? a.right : a.value <= 40 ? a.left : '균형'} (${a.value}%) — ${a.text}`),
+        ...pick('p-who').paragraphs.map(plain).filter(p => /전체/.test(p)),
         ...pick('p-who').paragraphs.map(plain).slice(2, 4),
       ],
-      advice: [plain(pick('p-stress').paragraphs[1])],
+      advice: [plain(pick('p-stress').paragraphs[1]), `회복법: ${DB.STEM_RECOVER[s.dayMaster.stem]}.`],
       why: [...pick('p-who').why.map(plain), ...r.axes.map(a => plain(a.why))],
       links: [{ menu: 'persona', label: '성격·성향 풀이 보기' }],
     };
   }
 
-  function answerLucky(s) {
-    const l = I.luckyItems(s), y = s.yongsin, info = I.ELEMENT_INFO[y.yongsin];
+  function answerLucky(s, now = new Date()) {
+    const Y = now.getFullYear();
+    // 올해 기운이 오르는 달 두 개, 앞으로 용신이 들어오는 해
+    const months = E.getWolun(s, Y).map(m => ({ m, sc: I.luckScore(s, m).score })).sort((a, b) => b.sc - a.sc).slice(0, 2);
+    const yongYears = E.getSeun(s, Y, Y + 11).filter(r => r.stemElement === s.yongsin.yongsin || r.branchElement === s.yongsin.yongsin).slice(0, 3);
+    const l = I.luckyItems(s), y = s.yongsin, info = I.ELEMENT_INFO[y.yongsin], life = DB.LIFE_BY_EL[y.yongsin];
+    const social = I.personaAxes(s)[0].value >= 50;
     return {
       topic: 'lucky', title: '행운과 개운법', conclusion: `나에게 필요한 기운은 ${y.yongsin}(${info.hanja})입니다. 이 기운을 가까이하면 균형이 맞춰진다고 봅니다.`,
-      points: [`행운의 색: ${l.color}`, `좋은 방향: ${l.direction}`, `행운의 숫자: ${l.numbers}`, `도움이 되는 활동: ${info.acts}`, `잘 맞는 분야: ${info.careers}`, `피하면 좋은 기운: ${y.gisin}(${I.ELEMENT_INFO[y.gisin].hanja}) — 이 기운이 강한 해에는 무리하지 마세요.`],
-      advice: ['개운법은 운을 바꾸는 마법이 아니라, 부족한 기운을 생활 속에서 의식적으로 채우는 습관입니다.'],
+      points: [`행운의 색: ${l.color}`, `좋은 방향: ${l.direction}`, `행운의 숫자: ${l.numbers}`,
+        `도움이 되는 음식: ${life.food}`, `머물면 좋은 곳: ${life.space}`, `기운이 오르는 시간: ${life.time}`, `잘 맞는 운동: ${life.exercise}`,
+        `${Y}년에 기운이 오르는 달: ${months.map(x => `${x.m.jie}부터의 ${x.m.hanja}월(${x.sc}점)`).join(', ')}`,
+        yongYears.length ? `필요한 기운이 들어오는 해: ${yongYears.map(r => `${r.year}년 ${r.hanja}`).join(', ')}` : null,
+        `도움이 되는 활동: ${info.acts}`, `잘 맞는 분야: ${info.careers}`, `피하면 좋은 기운: ${y.gisin}(${I.ELEMENT_INFO[y.gisin].hanja}) — 이 기운이 강한 해에는 무리하지 마세요.`],
+      advice: [`오늘부터 하나만: "${life.habit}"${social ? '를 좋아하는 사람과 함께 해 보세요. 외향적인 성향이라 함께할 때 더 오래가요.' : '를 혼자만의 루틴으로 만들어 보세요. 혼자 충전하는 성향이라 조용히 지킬 때 효과가 커요.'}`,
+        `${life.season}이 나에게 기운이 차오르는 계절이라, 새 습관이나 계획은 이때 시작하면 좋아요.`,
+        '개운법은 운을 바꾸는 마법이 아니라, 부족한 기운을 생활 속에서 의식적으로 채우는 습관입니다.'],
       why: [`해석 기준: ${y.method || '억부법'}. ${plain(y.reason || '')}`],
       links: [{ menu: 'saju', label: '용신 풀이 보기' }],
     };
@@ -475,7 +500,7 @@
     else if (id === 'health') out = answerHealth(s, t, Y);
     else if (id === 'personality') out = answerPersonality(s);
     else if (id === 'ideal') out = answerIdeal(s);
-    else if (id === 'lucky') out = answerLucky(s);
+    else if (id === 'lucky') out = answerLucky(s, now);
     else if (id === 'daeun') out = answerDaeun(s, Y);
     else if (id === 'method') out = answerMethod(s);
     else if (id === 'today') out = answerToday(s, now, t.day ?? 0);
@@ -485,7 +510,7 @@
     else if (id === 'year' || t.years.length) out = answerYear(s, t.years[0] || Y, Y, t);
     if (!out) out = answerGeneral(s, Y, now);
     out.question = q;
-    out.points = out.points.map(I.fixJosa);
+    out.points = out.points.filter(Boolean).map(I.fixJosa);
     out.conclusion = I.fixJosa(out.conclusion);
     return out;
   }
