@@ -105,6 +105,7 @@ main { max-width: 760px; margin: 0 auto; padding: 0 16px 64px; }
 fieldset.card { display: grid; gap: 12px; }
 legend { font-weight: 700; padding: 0 6px; }
 label { display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
+label > .muted { font-weight: 400; }
 .field { display: grid; gap: 4px; }
 .field-label { font-size: 14px; font-weight: 600; }
 input, select {

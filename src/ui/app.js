@@ -249,7 +249,7 @@
   function personFields(i, p = {}) {
     const n = (k) => `p${i}-${k}`;
     const sel = (a, b) => (a === b ? 'selected' : '');
-    const date = p.year ? `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}` : '';
+    const date = p.year ? `${p.year}.${String(p.month).padStart(2, '0')}.${String(p.day).padStart(2, '0')}` : '';
     const time = p.hour != null ? `${String(p.hour).padStart(2, '0')}:${String(p.minute || 0).padStart(2, '0')}` : '';
     return `
       <fieldset class="card person-form">
@@ -271,7 +271,8 @@
           </label>
           <label class="check"><input type="checkbox" id="${n('leap')}" ${p.isLeapMonth ? 'checked' : ''}> 윤달</label>
         </div>
-        <label>생년월일 <input type="date" id="${n('date')}" required min="1900-01-01" max="2100-12-31" value="${date}"></label>
+        <label>생년월일 <input type="text" id="${n('date')}" data-date required inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="예: 19970822" value="${date}">
+          <span class="muted small">숫자 8자리를 이어서 입력하면 돼요(연도 4자리 + 월 2자리 + 일 2자리).</span></label>
         <div class="row">
           <label>태어난 시간 <input type="time" id="${n('time')}" value="${time}"></label>
           <label class="check"><input type="checkbox" id="${n('notime')}" ${p.year && p.hour == null ? 'checked' : ''}> 모름</label>
@@ -301,11 +302,39 @@
       </fieldset>`;
   }
 
+  // 생년월일: 숫자만 이어서 쳐도(19970822) 점·하이픈을 섞어도(1997.8.22, 1997-08-22) 받는다
+  function parseBirthDate(text, calendar) {
+    const fail = (msg) => Object.assign(new Error(msg), { userFacing: true });  // 입력 화면에 그대로 보여 줄 문구
+    const t = String(text || '').trim();
+    if (!t) throw fail('생년월일을 입력해 주세요.');
+    const parts = t.split(/[^0-9]+/).filter(Boolean);
+    // 숫자만 치다 만 경우(자동으로 1997.08.2가 된 상태)는 2일로 넘겨짚지 않고 다시 묻는다
+    if (parts.length === 3 && parts[1].length === 2 && parts[2].length === 1) throw fail('생년월일 숫자가 7자리예요. 일(日)을 2자리로 입력해 주세요. 예: 19970802');
+    const digits = t.replace(/\D/g, '');
+    const [year, month, day] = parts.length === 3 ? parts.map(Number)
+      : digits.length === 8 ? [digits.slice(0, 4), digits.slice(4, 6), digits.slice(6)].map(Number) : [];
+    if (!year) throw fail('생년월일을 8자리 숫자로 입력해 주세요. 예: 19970822');
+    if (year < 1900 || year > 2100) throw fail('생년월일은 1900년부터 2100년까지 입력할 수 있어요.');
+    if (month < 1 || month > 12) throw fail(`${month}월은 없는 달이에요. 생년월일을 다시 확인해 주세요.`);
+    const maxDay = calendar === 'lunar' ? 30 : new Date(year, month, 0).getDate();
+    if (day < 1 || day > maxDay) throw fail(`${year}년 ${month}월에는 ${day}일이 없어요. 생년월일을 다시 확인해 주세요.`);
+    return [year, month, day];
+  }
+
+  // 입력하는 동안 1997.08.22 모양으로 점을 넣어 준다 (지울 때는 그대로 둔다)
+  document.addEventListener('input', (e) => {
+    const el = e.target.closest?.('[data-date]');
+    if (!el || e.inputType?.startsWith('delete')) return;
+    // 사용자가 직접 점을 찍어 가며(1997.8.22) 입력하는 중이면 건드리지 않는다
+    const dots = [...el.value].map((c, k) => (c === '.' ? k : -1)).filter(k => k >= 0);
+    if (/[^\d.]/.test(el.value) || dots.some(k => k !== 4 && k !== 7)) return;
+    const d = el.value.replace(/\D/g, '').slice(0, 8);
+    el.value = d.length > 6 ? `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6)}` : d.length > 4 ? `${d.slice(0, 4)}.${d.slice(4)}` : d;
+  });
+
   function readPerson(i) {
     const v = (k) => document.getElementById(`p${i}-${k}`);
-    const date = v('date').value;
-    if (!date) throw new Error('생년월일을 입력해 주세요.');
-    const [year, month, day] = date.split('-').map(Number);
+    const [year, month, day] = parseBirthDate(v('date').value, v('calendar').value);
     const noTime = v('notime').checked || !v('time').value;
     const [hour, minute] = noTime ? [null, 0] : v('time').value.split(':').map(Number);
     const place = v('place').value;
@@ -376,7 +405,7 @@
         go(`#/result/${m.id}`);
       } catch (err) {
         delete form.dataset.busy;
-        document.getElementById('form-error').textContent = err.message.includes('입력') ? err.message : '입력한 날짜를 계산할 수 없습니다. 날짜(특히 음력·윤달)를 다시 확인해 주세요.';
+        document.getElementById('form-error').textContent = err.userFacing || err.message.includes('입력') ? err.message : '입력한 날짜를 계산할 수 없습니다. 날짜(특히 음력·윤달)를 다시 확인해 주세요.';
       }
     });
   }
