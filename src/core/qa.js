@@ -53,11 +53,18 @@
     }[topic] || [];
   }
 
+  // '운세'·'내년'·'오늘'처럼 시기만 말하는 주제는, 시험·연애 같은 구체적인 주제가 함께 있으면 뒤로 물린다
+  // ("내년에 보는 시험 운세" → 시험 주제로 내년을 답함). 띄어쓰기는 무시하고 비교한다.
+  const GENERIC = ['year', 'month', 'today'];
   function detectTopic(q) {
+    const flat = q.replace(/\s+/g, '');
     let best = null, bestHits = 0;
     for (const t of TOPICS) {
-      const hits = t.kw.filter(k => q.includes(k)).length;
-      if (hits > bestHits) { best = t; bestHits = hits; }
+      const hits = t.kw.filter(k => flat.includes(k.replace(/\s+/g, ''))).length;
+      if (!hits) continue;
+      const better = !best || (GENERIC.includes(best.id) && !GENERIC.includes(t.id))
+        || (GENERIC.includes(best.id) === GENERIC.includes(t.id) && hits > bestHits);
+      if (better) { best = t; bestHits = hits; }
     }
     return best;
   }
@@ -67,20 +74,23 @@
     const years = [];
     for (const m of q.matchAll(/(19|20)\d{2}(?=\s*년|\D|$)/g)) years.push(Number(m[0]));
     if (/내후년|후년|내내년/.test(q)) years.push(Y + 2);
-    else if (/내년|다음 해/.test(q)) years.push(Y + 1);
+    else if (/내년|다음\s*해/.test(q)) years.push(Y + 1);
     if (/재작년/.test(q)) years.push(Y - 2);
     else if (/작년|지난해/.test(q)) years.push(Y - 1);
-    if (/올해|금년|이번 해/.test(q)) years.push(Y);
+    if (/올해|금년|이번\s*해/.test(q)) years.push(Y);
     for (const m of q.matchAll(/(\d{1,2})\s*년\s*(후|뒤)/g)) years.push(Y + Number(m[1]));
     for (const m of q.matchAll(/(\d{1,3})\s*(살|세)/g)) years.push(birth + Number(m[1]) - 1);
     let month = null;
     const mm = q.match(/(\d{1,2})\s*월/);
     if (mm && Number(mm[1]) >= 1 && Number(mm[1]) <= 12) month = Number(mm[1]);
-    if (/이번 달|이달/.test(q)) month = now.getMonth() + 1;
-    if (/다음 달/.test(q)) month = (now.getMonth() + 1) % 12 + 1;
+    if (/이번\s*달|이달/.test(q)) month = now.getMonth() + 1;
+    if (/다음\s*달/.test(q)) {
+      month = (now.getMonth() + 1) % 12 + 1;
+      if (month === 1 && !years.length) years.push(Y + 1);  // 12월에 묻는 "다음 달"은 내년 1월
+    }
     // 하루 단위: 오늘 0, 내일 1, 모레 2, 어제 -1 (없으면 null)
     const day = /모레/.test(q) ? 2 : /내일/.test(q) ? 1 : /어제/.test(q) ? -1 : /오늘/.test(q) ? 0 : null;
-    const when = /언제|몇 살|몇 년|시기|때가|타이밍|몇월|몇 월/.test(q);
+    const when = /언제|몇\s*살|몇\s*년|시기|때가|타이밍|몇\s*월/.test(q);
     const past = /과거|예전|그때|지났|있었|했었|였을|었을|힘들었|좋았/.test(q) || years.some(y => y < Y);
     return { raw: q, years: [...new Set(years)].filter(y => y >= birth && y <= birth + 100).sort(), month, day, when, past };
   }
@@ -202,7 +212,7 @@
     const label = topic === 'marriage' ? '결혼' : '연애';
     const birth = s.birth.solarDate.year;
     const head = [
-      `배우자운: ${sp.grade} (지수 ${sp.index}점)`,
+      `배우자운: ${sp.grade} (지수 ${sp.index}점 / 100점 만점, 보통은 60점)`,
       ...sp.factors.slice().sort((x, y) => Math.abs(y.w) - Math.abs(x.w)).slice(0, 2).map(f => `${f.title}: ${f.text}`),
     ];
     const why = [

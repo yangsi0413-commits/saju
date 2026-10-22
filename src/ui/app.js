@@ -395,8 +395,9 @@
     app.innerHTML = `
       <a class="back" href="#/">← 운세 선택</a>
       ${savedNotice()}
-      ${methodBar(s, menuId === 'saju')}
+      ${methodNote(s)}
       ${body}
+      ${methodBar(s)}
       ${qaSection(menuId)}
       ${otherMenus(menuId)}`;
     window.scrollTo(0, 0);
@@ -552,7 +553,14 @@
   // 해석 방법(학파) 선택
   // ============================================================
 
-  function methodBar(s, openCompare) {
+  // 결과 맨 위에는 지금 어떤 해석 방법으로 보고 있는지 한 줄만 보여 주고, 고르는 칸은 풀이 아래에 접어 둔다
+  // (처음 보는 사람에게 학파 선택부터 내밀면 어렵기 때문)
+  function methodNote(s) {
+    const M = s.methods, cur = M.byId[state.method] ? state.method : 'consensus', sel = M.byId[cur];
+    return `<p class="method-note muted small">해석 방법: <b>${esc(sel.name)}</b>${cur === 'consensus' ? ' (여러 학파의 결론을 모은 기본값)' : ''} · <a href="#method-bar" data-scroll>다른 방법으로 보기</a></p>`;
+  }
+
+  function methodBar(s) {
     const M = s.methods, cur = M.byId[state.method] ? state.method : 'consensus', sel = M.byId[cur];
     const stars = (n) => '★'.repeat(n);
     const resultHtml = sel.kind === 'yongsin' ? `
@@ -566,7 +574,9 @@
         <details class="why"><summary>왜 이렇게 보나요?</summary><ul>${sel.why.map(w => `<li>${rich(w)}</li>`).join('')}</ul></details>
         <p class="muted small">${esc(sel.name)}은 읽는 관점이라 용신은 바꾸지 않아요. 아래 풀이는 <b>종합</b> 기준이에요.</p>`;
     return `
-      <section class="card method-bar" id="method-bar">
+      <details class="card method-bar" id="method-bar" ${cur !== 'consensus' || state.methodOpen ? 'open' : ''}>
+        <summary class="method-summary"><b>해석 방법 바꿔 보기</b> <span class="muted small">지금: ${esc(sel.name)} · 사주를 좀 더 아는 분을 위한 기능</span></summary>
+        <p class="muted small">사주를 읽는 학파가 여러 가지라서, 같은 사주라도 "나에게 필요한 기운(용신)"이 조금씩 다르게 나올 수 있어요. 처음이라면 기본값인 <b>종합</b>을 그대로 두면 됩니다. 다른 방법을 누르면 위의 풀이 전체가 그 방법 기준으로 바뀌어요.</p>
         <div class="method-head"><h2>해석 방법</h2>${I.GLOSSARY.해석방법 ? `<button type="button" class="term small" data-term="해석방법">이게 뭔가요?</button>` : ''}</div>
         <div class="chips method-chips" role="tablist" aria-label="해석 방법">
           ${Methods.METHOD_ORDER.map(id => { const x = M.byId[id]; return `<button type="button" role="tab" aria-selected="${id === cur}" class="chip ${id === cur ? 'active' : ''} ${x.kind === 'lens' ? 'lens' : ''}" data-method="${id}">${esc(x.name)}</button>`; }).join('')}
@@ -574,7 +584,7 @@
         <div class="method-info">
           <p class="method-name"><b>${esc(sel.name)}</b> <span class="hanja-tag">${esc(sel.hanja)}</span> <span class="muted small">${esc(sel.short)}</span></p>
           <p class="lead">${rich(sel.verdict)}</p>
-          <details class="method-detail" ${openCompare ? 'open' : ''}>
+          <details class="method-detail">
             <summary>이 방법으로 본 풀이</summary>
             <p class="muted">${esc(sel.how)} <span class="small">(${esc(sel.source)})</span></p>
             ${resultHtml}
@@ -592,7 +602,7 @@
               </tr>`; }).join('')}</tbody>
           </table></div>
         </details>
-      </section>`;
+      </details>`;
   }
 
   // ============================================================
@@ -849,8 +859,36 @@
       </section>
 
       <section class="card">
+        <h2>자리와 육친 — 같은 십성도 어디에 있느냐가 중요해요</h2>
+        <p>풀이에 "시지 丑(정인)"처럼 나오면 <b>시지라는 자리</b>에 <b>정인이라는 기운</b>이 있다는 뜻입니다. 뜻은 자리가 정합니다. 네 기둥은 각각 인생의 시기와 생활 영역을 맡아요.</p>
+        <div class="table-wrap">
+          <table class="info">
+            <thead><tr><th scope="col">자리</th><th scope="col">시기</th><th scope="col">주로 보는 일</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">년주</th><td>어린 시절(약 15세까지)</td><td>집안 배경, 조상, 어릴 때 환경</td></tr>
+              <tr><th scope="row">월주</th><td>청년기(약 15~30세)</td><td>부모, 형제, 직장과 사회생활</td></tr>
+              <tr><th scope="row">일주</th><td>중년기(약 30~45세)</td><td>나 자신(일간)과 배우자·속마음(일지)</td></tr>
+              <tr><th scope="row">시주</th><td>말년(약 45세 이후)</td><td>자녀, 일의 결과, 노후</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><b>육친</b>은 십성마다 붙는 "가족에 빗댄 이름"이에요(정인 = 어머니, 정관 = 여성에게 남편 등). 상징일 뿐이라, 실제 그 가족과 사이가 어떻다는 뜻이나 내가 그 역할을 맡는다는 뜻은 아닙니다.</p>
+        <p class="muted">예시: 시지에 정인이 있으면 "어머니"가 아니라 <b>말년·자녀 자리에 나를 돕고 품어 주는 기운</b>이 있다고 읽습니다. 그래서 "말년이 편안하고 자녀 덕이 있다"가 됩니다. 일지(배우자 자리)에 편인이 있으면 "배우자와 정서적 거리가 있고 생각이 많다"처럼, 배우자 관계 안에서 그 기운이 어떻게 나타나는지로 읽어요.</p>
+      </section>
+
+      <section class="card">
+        <h2>점수 읽는 법</h2>
+        <dl class="glossary">
+          <dt>운 점수 (오늘·한 해·대운)</dt><dd>100점 만점. 들어오는 기운이 나에게 필요한 기운이면 올라가고, 부담되는 기운이면 내려갑니다. 80점 이상 아주 좋음, 65점 이상 좋음, 50점 이상 보통, 35점 이상 조심, 그 아래는 주의예요.</dd>
+          <dt>배우자운 지수</dt><dd>100점 만점. 좋은 요인도 나쁜 요인도 없는 사주를 "보통"인 60점에 두고, 요인마다 더하고 빼서 계산합니다. 60점은 "보통"이라는 뜻이고, 54점이면 보통보다 조금 낮은 정도예요. 85점 이상 아주 좋음, 75점 이상 좋음, 62점 이상 무난, 50점 이상 노력이 필요함.</dd>
+          <dt>궁합 점수</dt><dd>100점 만점. 실제 10만 쌍을 계산해 보면 80%가 61~73점 사이에 모여 있어요. 그래서 70점대면 꽤 잘 맞는 편이고, 80점 이상은 드문 조합입니다.</dd>
+          <dt>"상위 N%", "N명 중 1명"</dt><dd>1900~2099년에 태어날 수 있는 약 88만 명의 사주를 모두 계산해 비교한 위치예요.</dd>
+        </dl>
+      </section>
+
+      <section class="card">
         <h2>해석 방법(학파) — 같은 사주, 다른 풀이</h2>
-        <p>같은 사주도 <b>무엇을 가장 중요하게 보느냐</b>에 따라 필요한 기운(용신)이 달라집니다. 결과 화면 맨 위에서 방법을 바꿔 가며 비교해 보세요.</p>
+        <p>같은 사주도 <b>무엇을 가장 중요하게 보느냐</b>에 따라 필요한 기운(용신)이 달라집니다. 처음에는 기본값인 <b>종합</b>으로 보면 충분하고, 익숙해지면 결과 화면 아래쪽 "해석 방법 바꿔 보기"에서 방법을 바꿔 비교해 보세요.</p>
         <dl class="glossary">${Methods.METHOD_ORDER.map(id => { const x = Methods.METHOD_INFO[id]; return `<dt>${esc(x.name)} <span class="hanja-tag">${esc(x.hanja)}</span> <span class="muted small">${esc(x.source)}</span></dt><dd><b>${esc(x.short)}</b> ${esc(x.how)}</dd>`; }).join('')}</dl>
       </section>
 
@@ -885,6 +923,7 @@
     const mb = e.target.closest('[data-method]');
     if (mb) {
       state.method = mb.dataset.method;
+      state.methodOpen = true;
       try { localStorage.setItem(METHOD_KEY, state.method); } catch { /* 저장 불가 환경은 무시 */ }
       const [, page, arg] = (location.hash || '#/').split('/');
       if (page === 'result') { renderResult(arg); document.getElementById('method-bar')?.scrollIntoView(); }
@@ -893,7 +932,12 @@
     const y = e.target.closest('[data-year]');
     if (y) { state.year = Number(y.dataset.year); renderResult('year'); return; }
     const a = e.target.closest('a[data-scroll]');
-    if (a) { e.preventDefault(); document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' }); }
+    if (a) {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target?.tagName === 'DETAILS') target.open = true;
+      target?.scrollIntoView({ behavior: 'smooth' });
+    }
   });
   document.addEventListener('submit', (e) => {
     const delForm = e.target.closest('[data-delete-form]');

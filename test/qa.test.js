@@ -65,6 +65,8 @@ check('시점 내일', Q.parseTime('내일은 어때?', s, 2026, now).day === 1)
   check('오늘+주제 → 오늘 운세, 분야 먼저', at('내일 데이트 괜찮아?').points[0].startsWith('연애·관계'), at('내일 데이트 괜찮아?').points[0]);
   check('달+주제 → 그달 운세', at('12월 연애운').title === '2026년 12월 운세', at('12월 연애운').title);
   check('언제 질문은 여러 해', at('결혼은 언제?').topic === 'marriage');
+  check('운세+주제 → 주제 우선', at('내년에 보는 시험 운세 어때?').topic === 'exam' && at('내년에 보는 시험 운세 어때?').conclusion.startsWith('2027년'), at('내년에 보는 시험 운세 어때?').conclusion);
+  check('붙여 쓴 다음달', Q.parseTime('다음달 운세', s, 2026, now).month === 11);
   for (const id of M.METHOD_ORDER) {
     const x = M.applyMethod(S.analyzeSaju({ name: '지민', year: 1990, month: 5, day: 15, hour: 10, minute: 30, gender: 'F' }), id, 2026);
     check('용신 근거는 그 방법의 결론', x.yongsin.reason === x.methods.byId[x.methods.byId[id].kind === 'yongsin' ? id : 'consensus'].verdict, `${id}: ${x.yongsin.reason}`);

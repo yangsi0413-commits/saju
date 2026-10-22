@@ -409,6 +409,7 @@
   // ------------------------------------------------------------
   const POS_KEY = { 년: 'year', 월: 'month', 일: 'day', 시: 'hour' };
   const placeText = (c) => `${c.label} ${c.hanja}(${c.god})`;
+  const PLACE_OF = { 년간: '어린 시절·집안', 년지: '어린 시절·집안', 월간: '청년기·사회생활', 월지: '청년기·부모·직장', 일지: '배우자·속마음', 시간: '말년·자녀', 시지: '말년·자녀' };
   const posMeaning = (c) => DB.TEN_GOD_POSITION[c.god][DB.POS_INDEX[POS_KEY[c.label[0]]]];
   const SEASON_OF = ['겨울', '겨울', '봄', '봄', '봄', '여름', '여름', '여름', '가을', '가을', '가을', '겨울'];
 
@@ -592,11 +593,15 @@
     const absent = GROUPS.filter(x => groupCount(s, x) === 0);
     const st = structures(s);
     const yk = DB.YUKCHIN[isMale(s) ? 'M' : 'F'];
+    const cs = chars(s);
+    const gods = [...new Set(cs.map(c => c.god))];
     const paragraphs = [
       `${josa(top, '이/가')} 가장 강합니다(${g[top]}%). ${GROUP_INFO[top].many}`,
       ...st.map(x => `${x.id}: ${x.text}`),
       ...absent.map(x => `${josa(x, '이/가')} 없음: ${GROUP_INFO[x].none}`),
-      ...chars(s).map(c => `${placeText(c)} · ${yk[c.god]}: ${posMeaning(c)}`),
+      '아래 글자별 풀이는 "그 글자가 어느 자리에 있느냐"로 읽습니다. 같은 십성이라도 년주는 어린 시절·집안, 월주는 청년기·사회, 일지는 배우자·속마음, 시주는 말년·자녀의 일로 나타납니다.',
+      ...cs.map(c => `${placeText(c)}: ${PLACE_OF[c.label]} 자리에서 — ${posMeaning(c)}`),
+      `가족에 빗댄 이름(육친): ${gods.map(x => `${x} = ${yk[x]}`).join(', ')}. 십성마다 붙는 상징적인 이름일 뿐, 실제 그 가족과의 관계나 내가 맡을 역할을 뜻하지는 않습니다. 예를 들어 정인은 "어머니처럼 나를 돕고 품어 주는 기운", 편인은 "독특한 방식으로 나를 키우는 기운"으로 읽으면 됩니다.`,
     ];
     return section('tengods', '십성 — 나를 둘러싼 관계',
       st.length ? `${top} 기운이 가장 강하고, ${st.slice(0, 2).map(x => x.id).join('·')} 구조가 보입니다.` : `${top} 기운이 가장 두드러집니다.`,
@@ -922,7 +927,9 @@
     const pal = sp.palace;
     const good = sp.factors.filter(f => f.w > 0).sort((a, b) => b.w - a.w);
     const bad = sp.factors.filter(f => f.w < 0).sort((a, b) => a.w - b.w);
-    return section('love', '연애·결혼운', `${sp.grade} (배우자운 지수 ${sp.index}점 = 기준 60 ${sp.factors.reduce((t, f) => t + f.w, 0) >= 0 ? '+' : '−'} ${Math.abs(Math.round(sp.factors.reduce((t, f) => t + f.w, 0) * 6))})`, [
+    const diff = sp.index - 60;
+    return section('love', '연애·결혼운', `${sp.grade} (배우자운 지수 ${sp.index}점 / 100점 만점)`, [
+      `지수 읽는 법: 100점 만점입니다. 좋은 요인도 나쁜 요인도 없는 사주를 "무난함"인 60점에 두고, 아래 요인을 더하고 빼서 계산했어요. 그래서 60점은 시험의 60점이 아니라 "보통"이라는 뜻이고, ${diff === 0 ? '지금 점수는 딱 보통입니다' : `지금 점수는 보통보다 ${Math.abs(diff)}점 ${diff > 0 ? '높은' : '낮은'} 편입니다`}. 등급은 85점 이상 아주 좋음, 75점 이상 좋음, 62점 이상 무난, 50점 이상 노력이 필요함, 그 아래는 굴곡이 있는 편으로 나눕니다.`,
       good.length ? `좋게 작용하는 점: ${good.map(f => `${f.title}(+${Math.round(f.w * 6)})`).join(' / ')}` : '좋게 작용하는 점: 두드러진 요인이 없어요.',
       bad.length ? `조심할 점: ${bad.map(f => `${f.title}(${Math.round(f.w * 6)})`).join(' / ')}` : '조심할 점: 두드러진 요인이 없어요.',
       tm.future.length ? `앞으로 인연·결혼 기운이 강한 해: ${yearsText(tm.future)}` : '앞으로 인연·결혼 기운: 12년 안에 뚜렷하게 강한 해는 보이지 않아요. 시기보다 만남의 기회를 넓히는 노력이 중요해요.',
@@ -1568,7 +1575,7 @@
       section('p-love', '연애할 때의 나', `${axes[1].value >= 60 ? '마음을 나누며 깊어지는' : axes[1].value <= 40 ? '믿음과 행동으로 지키는' : '편안하게 스며드는'} 연애를 하고, ${spo.grade.replace(' 사주', '')}입니다.`, [
         `${sp.love} 여기에 ${g1}의 기운이 더해집니다 — ${gp1.love}`,
         `${p.day.hanja} 일주의 연애: ${ilj.love}.`,
-        `배우자운 ${spo.index}점(${spo.grade}): ${spo.factors.length ? `가장 큰 요인은 '${spo.factors.slice().sort((x, y) => Math.abs(y.w) - Math.abs(x.w))[0].title}'입니다` : '두드러진 요인이 없습니다'}.`,
+        `배우자운 ${spo.index}점(100점 만점, 보통 60점 · ${spo.grade}): ${spo.factors.length ? `가장 큰 요인은 '${spo.factors.slice().sort((x, y) => Math.abs(y.w) - Math.abs(x.w))[0].title}'입니다` : '두드러진 요인이 없습니다'}.`,
         ...spo.factors.slice().sort((x, y) => Math.abs(y.w) - Math.abs(x.w)).slice(0, 2).map(f => `${f.title}: ${f.text}`),
         hasDohwa ? `도화살(${['year', 'month', 'day', 'hour'].filter(k => p[k] && (p[k].sinsal12.byYear === '년살(도화)' || p[k].sinsal12.byDay === '년살(도화)')).map(k => POS_LABEL_KO[k]).join('·')})이 있어 ${p.day.sinsal12.byYear === '년살(도화)' || p.day.sinsal12.byDay === '년살(도화)' ? '배우자 자리에서부터 사람을 끄는 매력이 드러납니다' : '사람을 끄는 매력이 있습니다'}.` : null,
       ], [

@@ -338,6 +338,11 @@ dialog button { margin-top: 12px; padding: 10px 16px; border-radius: 10px; borde
 .keypoints span { color: var(--ink); }
 
 /* 해석 방법 */
+.method-note { margin: 4px 0 12px; }
+.method-note a { color: var(--accent); }
+.method-summary { cursor: pointer; line-height: 1.6; }
+.method-summary .muted { display: block; }
+details.method-bar[open] > .method-summary { margin-bottom: 10px; }
 .method-head { display: flex; justify-content: space-between; align-items: baseline; }
 .method-head .term { font-size: 13px; }
 .method-chips { margin: 8px 0 4px; }
