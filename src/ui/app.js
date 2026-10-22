@@ -52,7 +52,6 @@
   const METHOD_KEY = 'saju.method';
   const loadMethod = () => { try { return localStorage.getItem(METHOD_KEY) || 'consensus'; } catch { return 'consensus'; } };
   const state = { profiles: SHARED ? [SHARED] : DEMO ? DEMO_PROFILES : loadProfiles(), saved: null, year: THIS_YEAR, method: params.get('method') || loadMethod(), route: '' };
-  state.qa = { sig: '', items: [], ctx: null };
 
   // 사주 계산 + 고른 해석 방법(학파)의 용신 적용
   const analyze = (p) => Methods.applyMethod(analyzeSaju(p), state.method, THIS_YEAR);
@@ -390,7 +389,6 @@
     const m = menuOf(menuId);
     if (!m || !state.profiles[0] || (m.people === 2 && !state.profiles[1])) return go(`#/input/${menuId}`);
     const s = analyze(state.profiles[0]);
-    setQaContext(s);
     const body = { saju: resultSaju, persona: resultPersona, life: resultLife, today: resultToday, year: resultYear, daeun: resultDaeun, compat: resultCompat }[menuId](s);
     app.innerHTML = `
       <a class="back" href="#/">← 운세 선택</a>
@@ -398,7 +396,6 @@
       ${methodNote(s)}
       ${body}
       ${methodBar(s)}
-      ${qaSection(menuId)}
       ${otherMenus(menuId)}`;
     window.scrollTo(0, 0);
     // 대운 흐름표는 가로로 길어서, 지금 대운이 보이도록 가운데로 옮겨 둔다
@@ -488,65 +485,6 @@
       ${personHeader(s)}
       ${timeline}
       ${r.sections.map(x => renderSection(x)).join('')}`;
-  }
-
-  // ============================================================
-  // 사주 Q&A: 결과 화면 맨 끝에서 위의 풀이를 근거로 질문하고 그 자리에서 답을 본다
-  // ============================================================
-
-  // 대화는 같은 사람·같은 해석 방법일 때만 이어 간다
-  function setQaContext(s) {
-    const sig = JSON.stringify([state.profiles, state.method]);
-    if (state.qa.sig !== sig) Object.assign(state.qa, { sig, items: [] });
-    state.qa.ctx = { s, partners: state.profiles.slice(1, 3).filter(Boolean).map(p => analyze(p)) };
-  }
-
-  function answerCard(a) {
-    return `
-      <article class="qa-answer">
-        <p class="qa-kind muted small">${esc(a.title)}</p>
-        <p class="lead">${rich(a.conclusion)}</p>
-        ${paragraphs(a.points)}
-        ${a.advice.length ? `<div class="qa-advice"><b>조언</b><ul>${a.advice.map(x => `<li>${rich(x)}</li>`).join('')}</ul></div>` : ''}
-        ${a.why.length ? `<details class="why"><summary>근거 더 보기</summary><ul>${a.why.map(w => `<li>${rich(w)}</li>`).join('')}</ul></details>` : ''}
-        ${a.links.length ? `<div class="chips">${a.links.map(l => `<a class="chip" href="#/${l.input ? 'input' : 'result'}/${l.menu}">${esc(l.label)} →</a>`).join('')}</div>` : ''}
-      </article>`;
-  }
-
-  const threadHtml = () => state.qa.items
-    .map(it => (it.role === 'user' ? `<div class="qa-q"><span>${esc(it.text)}</span></div>` : answerCard(it.answer))).join('');
-
-  function qaSection(menuId) {
-    const sug = SajuQA.SUGGESTIONS[menuId] || SajuQA.SUGGESTIONS.qa;
-    return `
-      <section class="card qa-entry" id="qa">
-        <h2>풀이를 보고 궁금한 게 있나요?</h2>
-        <p class="muted small">위의 풀이를 근거로 답해 드려요. 주제(직장·재물·연애·결혼·건강·이사 등)와 시기(연도·나이·달)를 넣어 물어보면 더 정확해요.</p>
-        <div class="qa-thread" id="qa-thread" aria-live="polite">${threadHtml()}</div>
-        <form class="qa-form-inline" data-qa-form>
-          <input name="q" maxlength="200" placeholder="예: ${esc(sug[0])}" aria-label="질문">
-          <button class="primary small-btn">질문하기</button>
-        </form>
-        <div class="chips">${sug.map(q => `<button type="button" class="chip" data-ask="${esc(q)}">${esc(q)}</button>`).join('')}</div>
-        <button type="button" class="chip ghost qa-clear" data-qa-clear ${state.qa.items.length ? '' : 'hidden'}>대화 지우기</button>
-      </section>`;
-  }
-
-  function redrawThread() {
-    const el = document.getElementById('qa-thread');
-    if (el) el.innerHTML = threadHtml();
-    const clear = document.querySelector('[data-qa-clear]');
-    if (clear) clear.hidden = !state.qa.items.length;
-  }
-
-  function askQuestion(q) {
-    q = q.trim();
-    if (!q || !state.qa.ctx) return;
-    const { s, partners } = state.qa.ctx;
-    state.qa.items.push({ role: 'user', text: q }, { role: 'assistant', answer: SajuQA.answer(s, q, { partners, now: new Date() }) });
-    redrawThread();
-    const thread = document.getElementById('qa-thread');
-    thread?.children[thread.children.length - 2]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // ============================================================
@@ -917,9 +855,6 @@
     }
     const del = e.target.closest('[data-del-token]');
     if (del) { if (confirm('이 기록을 서버에서 삭제할까요?')) deleteByToken(del.dataset.delToken); return; }
-    const ask = e.target.closest('[data-ask]');
-    if (ask) { askQuestion(ask.dataset.ask); return; }
-    if (e.target.closest('[data-qa-clear]')) { state.qa.items = []; redrawThread(); return; }
     const mb = e.target.closest('[data-method]');
     if (mb) {
       state.method = mb.dataset.method;
@@ -941,15 +876,7 @@
   });
   document.addEventListener('submit', (e) => {
     const delForm = e.target.closest('[data-delete-form]');
-    if (delForm) { e.preventDefault(); deleteByToken(delForm.token.value); return; }
-    const qaForm = e.target.closest('[data-qa-form]');
-    if (qaForm) {
-      e.preventDefault();
-      const q = qaForm.q.value.trim();
-      if (!q) return;
-      qaForm.q.value = '';
-      askQuestion(q);
-    }
+    if (delForm) { e.preventDefault(); deleteByToken(delForm.token.value); }
   });
 
   // 인생 그래프: 가장 가까운 해의 점수를 보여 준다

@@ -361,19 +361,6 @@
     '땀 흘리는 운동으로 털어내면 머리가 맑아집니다', '예쁜 것을 보고 나를 가꾸는 시간이 기운을 채워 줍니다',
     '여행이나 드라이브로 환경을 바꾸면 생각이 풀립니다', '충분히 자고 감정을 글로 적으면 정리가 됩니다',
   ];
-  // 성향 지표 두 개를 겹친 유형: [외향·균형·내향][감성·균형·이성], [계획·균형·즉흥][주도·균형·협조]
-  const AXIS_PAIR = {
-    social: [
-      ['분위기를 띄우고 사람의 마음을 먼저 읽는 "분위기 메이커"', '사람을 좋아하면서도 판단은 균형 있게 하는 "사교적인 중재자"', '밖으로 나서되 판단은 냉정한 "추진형 리더"'],
-      ['상황에 따라 다정하게도 차분하게도 대하는 "따뜻한 균형형"', '어디서든 무난하게 어울리는 "안정적인 팀원"', '필요할 때만 나서고 판단은 정확한 "실속형"'],
-      ['겉은 조용하지만 속정이 깊은 "공감형 조력자"', '혼자 생각하고 신중하게 다가가는 "사려 깊은 관찰자"', '혼자 깊이 파고드는 "분석형 전문가"'],
-    ],
-    work: [
-      ['계획을 세우고 앞장서 끌고 가는 "설계형 리더"', '체계적으로 준비하고 필요할 때 나서는 "전략가"', '꼼꼼하게 준비해 팀을 받쳐 주는 "든든한 관리자"'],
-      ['큰 방향을 잡고 상황에 맞게 이끄는 "현장형 리더"', '계획과 즉흥을 오가는 "유연한 실무자"', '맡은 일을 조용히 해내는 "믿음직한 동료"'],
-      ['기회가 보이면 바로 움직이는 "개척자"', '그때그때 판단이 빠른 "순발력형"', '분위기에 맞춰 가볍게 움직이는 "자유로운 협력자"'],
-    ],
-  };
   // 대운이 들어오는 나이대의 의미
   const AGE_STAGE = [
     [0, '공부와 기초를 다지는 때라, 이 기운이 학업과 성격의 바탕을 만들어 줍니다'],
@@ -389,7 +376,7 @@
     hongran, cheonhui, gosinGwasuk, EUMYANG_CHACHAK, GORAN, GANYEOJIDONG, MARRIAGE_SINSAL, SPOUSE_RULES, ilju,
     ILJU_TEXT, EVENTS_BY_GOD, PALACE_EVENTS, SINSAL12_EVENTS,
     STEM_CONFLICT, GOD_FRICTION, GOD_TIP, TOPIC_FIX, CONFLICT_MODE, MODE_PAIR, HORSEMAN,
-    LIFE_BY_EL, CAREER_COMBO, STEM_RECOVER, AXIS_PAIR, AGE_STAGE,
+    LIFE_BY_EL, CAREER_COMBO, STEM_RECOVER, AGE_STAGE,
   };
   if (typeof module !== 'undefined') module.exports = api;
   else root.Myeongri = api;

@@ -1,6 +1,6 @@
 // 검증: 점수가 20점 이상 다른데 같은 문장이 나오는 비율 (점수와 해석이 따로 놀면 실패)
 const R = '../src/core/';
-const S = require(R + 'saju.js'), M = require(R + 'methods.js'), I = require(R + 'interpret.js'), Q = require(R + 'qa.js');
+const S = require(R + 'saju.js'), M = require(R + 'methods.js'), I = require(R + 'interpret.js');
 let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 const mk = (g) => { const t = new Date(Date.UTC(1960, 0, 1) + rnd() * 45 * 365.25 * 86400000); return M.applyMethod(S.analyzeSaju({ name: g === 'M' ? '남' : '여', gender: g, year: t.getUTCFullYear(), month: t.getUTCMonth() + 1, day: t.getUTCDate(), hour: t.getUTCHours(), minute: 0 }), 'consensus', 2026); };
 const now = new Date(2026, 9, 20);
@@ -24,8 +24,6 @@ for (let i = 0; i < N; i++) {
   put('오늘:요약', td.sections[0].lead, td.score.score);
   const da = I.readDaeun(a, 2026);
   if (da) for (const d of da.list) put('대운:테마', d.theme, d.score);
-  const q = Q.answer(a, '2028년 직장운은?', { now });
-  put('Q&A:연도', q.points.filter(p => !/^\d{4}년 \S+\(/.test(p)).join(' '), Number((q.conclusion.match(/(\d+)점/) || [])[1]));
 }
 const rows = [];
 for (const [type, m] of Object.entries(rec)) {

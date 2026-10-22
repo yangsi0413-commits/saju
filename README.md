@@ -7,7 +7,6 @@
 
 - 종합풀이, 성격, 인생 흐름, 오늘의 운세, 신년운세, 대운, 궁합
 - 해석 방법(억부·조후·격국 등) 선택
-- 풀이 결과 기반 Q&A
 - 사주 기초 배우기 페이지
 - 디자인 테마 5종
 - 동의한 경우에만 기록 저장 (Supabase, 선택)
@@ -23,7 +22,7 @@ npm test
 ## 구조
 
 ```
-src/core/   계산 엔진(saju.js), 풀이(interpret.js), 해석 방법(methods.js), Q&A(qa.js)
+src/core/   계산 엔진(saju.js), 풀이(interpret.js), 해석 방법(methods.js)
 src/data/   명리 데이터, 통계 데이터(scripts/build-stats.js로 생성)
 src/ui/     화면, 스타일, 저장 연동
 admin.html  저장된 기록 보는 관리자 페이지

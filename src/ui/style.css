@@ -379,21 +379,6 @@ details.method-bar[open] > .method-summary { margin-bottom: 10px; }
 .chart-tip { position: absolute; top: 0; padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--bg); font-size: 12px; pointer-events: none; white-space: nowrap; }
 .life-chart figcaption { margin-top: 6px; }
 
-/* 사주 Q&A */
-.qa-form-inline { display: flex; gap: 8px; margin: 8px 0 12px; }
-.qa-form-inline input { flex: 1; }
-.small-btn { width: auto; margin: 0; padding: 10px 16px; font-size: 15px; white-space: nowrap; }
-.qa-thread { display: grid; gap: 12px; margin: 12px 0; }
-.qa-thread:empty { display: none; }
-.qa-clear { margin-top: 8px; font-size: 12px; }
-.qa-q { display: flex; justify-content: flex-end; }
-.qa-q span { max-width: 85%; padding: 10px 14px; border-radius: 16px 16px 4px 16px; background: var(--accent-soft); color: var(--ink); font-weight: 600; line-height: 1.6; }
-.qa-answer { padding: 16px 18px; border-radius: 4px 16px 16px 16px; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); }
-.qa-answer .lead { margin-top: 2px; }
-.qa-kind { margin: 0; }
-.qa-advice { margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--accent-soft); font-size: 14px; }
-.qa-advice ul { margin: 6px 0 0; padding-left: 18px; }
-
 /* 저장 동의·삭제 */
 .consent .check { align-items: flex-start; font-weight: 500; }
 .consent .check input { margin-top: 5px; }
